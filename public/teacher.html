@@ -123,13 +123,6 @@
   <h2>Level Controls</h2>
   <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;">Click individual levels to toggle. Challenge sets toggle as a group.</p>
   <div id="level-grid"></div>
-  <div class="level-actions">
-    <button class="btn btn-green" onclick="unlockRange(1,21)">Unlock All</button>
-    <button class="btn btn-red" onclick="lockRange(4,21)">Lock 4-21</button>
-    <button class="btn btn-green" onclick="unlockRange(1,9)">Unlock 1-9</button>
-    <button class="btn btn-green" onclick="unlockRange(1,11)">Unlock 1-11</button>
-    <button class="btn btn-outline" onclick="resetAll()">Reset Everything</button>
-  </div>
 </div>
 
 <!-- TEAMS TABLE -->
@@ -242,6 +235,12 @@ function renderLevels() {
       var nameSpan = document.createElement('span');
       nameSpan.textContent = cs.name || seg.cs.name;
       label.appendChild(nameSpan);
+
+      var toggleBtn = document.createElement('button');
+      toggleBtn.className = 'ch-toggle';
+      toggleBtn.textContent = allUnlocked ? 'Lock Group' : 'Unlock Group';
+      toggleBtn.onclick = function() { toggleChallengeGroup(seg.csId, allUnlocked); };
+      label.appendChild(toggleBtn);
 
       group.appendChild(label);
       row.appendChild(group);
