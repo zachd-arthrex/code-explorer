@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Robot Coder - Join</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #0f172a; color: #f1f5f9; font-family: 'Segoe UI', system-ui, sans-serif;
+    gap: 32px; padding: 40px;
+  }
+  h1 { font-size: 3.5rem; font-weight: 900; letter-spacing: -1px; }
+  h1 span { color: #818cf8; }
+  .qr { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 0 40px rgba(99,102,241,0.3); }
+  .qr img { display: block; width: 320px; height: 320px; }
+  .url {
+    font-size: 2rem; font-weight: 700; letter-spacing: 1px;
+    background: rgba(99,102,241,0.15); border: 2px solid #818cf8;
+    padding: 16px 40px; border-radius: 12px; color: #c7d2fe;
+  }
+  .hint { font-size: 1.1rem; color: #94a3b8; }
+</style>
+</head>
+<body>
+  <h1>&#129302; <span>Robot Coder</span></h1>
+  <p class="hint">Scan the QR code or type the URL in your browser</p>
+  <div class="qr">
+    <img id="qr-img" alt="QR Code">
+  </div>
+  <div class="url" id="url-display"></div>
+  <script>
+    // Auto-detect the game URL (same origin minus /qr.html)
+    var gameUrl = window.location.origin;
+    document.getElementById('url-display').textContent = gameUrl.replace('https://','').replace('http://','');
+    // Use Google Charts QR API
+    document.getElementById('qr-img').src = 'https://chart.googleapis.com/chart?cht=qr&chs=320x320&choe=UTF-8&chl=' + encodeURIComponent(gameUrl);
+  </script>
+</body>
+</html>
