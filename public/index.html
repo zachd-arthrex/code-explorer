@@ -1,0 +1,2673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, orientation=landscape">
+<title>Robot Coder ??</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; }
+  /* Force landscape orientation rendering */
+  @media (orientation: portrait) {
+    body::before {
+      content: '🔄 Rotate your device to landscape mode';
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 900; background: #060b14; color: #00e5ff;
+      z-index: 9999; text-align: center; padding: 20px;
+    }
+  }
+
+  /* ===== ROBOT THEME ===== */
+  body {
+    --bg:       #060b14;
+    --bg2:      #0b1220;
+    --accent:   #00b4d8;
+    --accent2:  #00e5ff;
+    --tile:     #0f1a28;
+    --wall:     #2a3a52;
+    --text:     #cde4f5;
+    --btn:      #0077a8;
+    --btn-hover:#00a8d4;
+    --success:  #00cc66;
+    --danger:   #ff4455;
+    --glow:     #00e5ff;
+    --particle: #00e5ff;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* ===== ANIMATED BACKGROUND ===== */
+  #bg-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.55; }
+  .screen { z-index: 1; }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; position: fixed; inset: 0; overflow-y: auto; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    animation: screenIn 0.35s cubic-bezier(0.22,1,0.36,1); }
+  @keyframes screenIn { from { opacity:0; transform: scale(0.96) translateY(10px); } to { opacity:1; transform: none; } }
+
+  /* ===== START SCREEN ===== */
+  #screen-start { gap: 24px; padding: 24px; }
+  .logo {
+    font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; text-align: center;
+    text-shadow: 0 0 30px var(--glow), 0 2px 0 rgba(0,0,0,0.5);
+    animation: logoPulse 3s ease-in-out infinite;
+  }
+  @keyframes logoPulse { 0%,100%{ text-shadow: 0 0 20px var(--glow), 0 2px 0 rgba(0,0,0,0.5); } 50%{ text-shadow: 0 0 45px var(--glow), 0 0 80px var(--glow), 0 2px 0 rgba(0,0,0,0.5); } }
+  .logo span { color: var(--accent2); }
+  .subtitle { font-size: clamp(0.9rem, 2.5vw, 1.1rem); opacity: 0.75; text-align: center; }
+
+  .section-label { font-size: 0.85rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+
+  .name-input {
+    width: 100%; max-width: 360px; padding: 16px 20px; border-radius: 14px;
+    border: 2px solid var(--accent); background: var(--bg2); color: var(--text);
+    font-size: 1.3rem; text-align: center; outline: none;
+    box-shadow: 0 0 0 0 var(--glow); transition: box-shadow 0.3s;
+  }
+  .name-input:focus { border-color: var(--accent2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--glow) 25%, transparent); }
+
+  .btn-primary {
+    padding: 16px 40px; border-radius: 14px; border: none; cursor: pointer;
+    background: linear-gradient(180deg, var(--btn-hover) 0%, var(--btn) 100%);
+    color: white; font-size: 1.2rem; font-weight: 900;
+    box-shadow: 0 6px 0 color-mix(in srgb, var(--btn) 60%, #000), 0 8px 20px rgba(0,0,0,0.4);
+    transition: all 0.12s; letter-spacing: 0.5px; position: relative; top: 0;
+  }
+  .btn-primary:hover { filter: brightness(1.12); transform: translateY(-2px); box-shadow: 0 8px 0 color-mix(in srgb, var(--btn) 60%, #000), 0 12px 24px rgba(0,0,0,0.4); }
+  .btn-primary:active { top: 4px; box-shadow: 0 2px 0 color-mix(in srgb, var(--btn) 60%, #000), 0 4px 8px rgba(0,0,0,0.3); transform: none; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .section-label { font-size: 0.85rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ===== GAME SCREEN ===== */
+  #screen-game {
+    display: none; position: fixed; inset: 0;
+    flex-direction: column; background: var(--bg);
+  }
+  #screen-game.active {
+    display: flex; animation: none;
+    align-items: stretch; justify-content: flex-start; flex-direction: column;
+  }
+
+  .game-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 14px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg2) 80%, var(--accent) 20%) 0%, var(--bg2) 100%);
+    border-bottom: 2px solid var(--accent);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    flex-shrink: 0; gap: 8px;
+    height: 44px;
+  }
+  .game-header .team-name { font-weight: 900; font-size: 0.95rem; color: var(--accent2); text-shadow: 0 0 10px var(--glow); }
+  .level-info { font-size: 0.8rem; opacity: 0.8; }
+  .step-counter { font-size: 0.8rem; }
+  .step-counter.over { color: var(--danger); font-weight: 700; animation: shake 0.4s ease; }
+  @keyframes shake { 0%,100%{transform:none} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+
+  .game-body {
+    flex: 1; display: flex; flex-direction: row; overflow: hidden; min-height: 0;
+  }
+
+  /* Grid area — takes the left ~62% */
+  .grid-area {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 10px; min-width: 0; overflow: visible;
+  }
+  .grid-wrap { position: relative; display: flex; align-items: center; justify-content: center; overflow: visible; }
+  #iso-canvas { display: block; }
+
+  /* Sidebar — fixed width right panel */
+  .sidebar {
+    width: 310px; min-width: 260px; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, var(--bg2) 0%, color-mix(in srgb, var(--bg2) 90%, #000) 100%);
+    border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+    overflow: hidden; flex-shrink: 0; position: relative;
+    transition: width 0.25s ease;
+  }
+
+  @media (max-width: 600px) {
+    .game-body { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; border-left: none; border-top: 2px solid var(--accent); flex-direction: row; flex-wrap: wrap; max-height: 200px; }
+  }
+
+  .sidebar-section { padding: 10px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sidebar-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.55; margin-bottom: 6px; }
+
+  .cmd-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .cmd-btn {
+    padding: 10px 4px; border-radius: 10px; border: none; cursor: pointer;
+    font-size: 0.7rem; font-weight: 800; text-align: center; user-select: none;
+    color: var(--text); position: relative; top: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--tile)) 0%, var(--tile) 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: all 0.1s;
+  }
+  .cmd-btn:hover {
+    background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #000) 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 12px color-mix(in srgb, var(--glow) 50%, transparent);
+    color: white; top: -1px;
+  }
+  .cmd-btn:active { top: 3px; box-shadow: 0 1px 0 rgba(0,0,0,0.5); }
+
+  /* 3-column command grid */
+  .cmd-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+  .cmd-dock { margin-top: 6px; display: grid; grid-template-columns: 1fr; gap: 5px; }
+  .cmd-btn.dock-btn {
+    background: linear-gradient(180deg, color-mix(in srgb, #4ade80 30%, var(--tile)) 0%, var(--tile) 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 1px color-mix(in srgb, #4ade80 40%, transparent);
+  }
+  .cmd-btn.dock-btn:hover {
+    background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 12px rgba(74,222,128,0.5);
+  }
+
+  /* Dynamic function call buttons — styled same as cmd-btn, placed in cmd grid */
+  .fn-call-btn {
+    padding: 10px 4px; border-radius: 10px; border: none; cursor: pointer;
+    font-size: 0.7rem; font-weight: 800; text-align: center; user-select: none;
+    color: var(--text); position: relative; top: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--tile)) 0%, var(--tile) 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: all 0.1s;
+  }
+  .fn-call-btn:hover {
+    background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #000) 100%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 12px color-mix(in srgb, var(--glow) 50%, transparent);
+    color: white; top: -1px;
+  }
+  .fn-call-btn:active { top: 3px; box-shadow: 0 1px 0 rgba(0,0,0,0.5); }
+  .fn-call-btn .btn-icon { width: 20px; height: 20px; display: block; flex-shrink: 0; pointer-events: none; }
+
+  /* Add Function button — standalone action below the lists */
+  .add-fn-row {
+    padding: 4px 10px; flex-shrink: 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .add-fn-btn {
+    width: auto; display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border-radius: 6px;
+    border: 1px dashed rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.45);
+    font-size: 0.7rem; font-weight: 700; cursor: pointer;
+    transition: all 0.15s; letter-spacing: 0.3px;
+  }
+  .add-fn-btn:hover {
+    border-color: rgba(255,255,255,0.4); border-style: solid;
+    color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.08);
+  }
+  .add-fn-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* List panels (program + function queues) */
+  .lists-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+  .list-panel {
+    border-radius: 8px; margin: 0 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .list-panel.fn-panel {
+  }
+  /* De-emphasize inactive panels when another is active */
+  .list-panel:not(.list-panel-active) {
+    opacity: 0.45; filter: saturate(0.4);
+    transition: opacity 0.2s, filter 0.2s;
+  }
+  .list-panel:not(.list-panel-active):hover { opacity: 0.7; filter: saturate(0.7); }
+  .list-panel-active { opacity: 1; filter: none; transition: opacity 0.2s, filter 0.2s; }
+  /* During execution: show all panels fully, no de-emphasis */
+  .lists-area.running-mode .list-panel { opacity: 1 !important; filter: none !important; }
+  .lists-area.running-mode .list-panel .queue-item { transition: background 0.15s, box-shadow 0.15s; }
+  /* Highlight the specific fn sub-step being executed */
+  .queue-item.active-fn-step {
+    background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #000) 100%);
+    color: white; box-shadow: 0 0 12px color-mix(in srgb, var(--glow) 60%, transparent);
+  }
+  .list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; font-size: 0.82rem; font-weight: 800;
+    cursor: pointer; user-select: none; transition: all 0.12s;
+    color: rgba(255,255,255,0.5); border-left: 3px solid transparent;
+  }
+  .list-header:hover { background: rgba(255,255,255,0.04); }
+  .list-panel-active > .list-header { color: #fff; }
+  .list-panel-active > .list-header-program { background: rgba(99,102,241,0.12); border-left-color: var(--accent); }
+  .list-panel-active > .list-header-fn { background: rgba(99,102,241,0.12); border-left-color: var(--accent); }
+  .list-header-fn { }
+  .list-header .fn-remove-btn {
+    padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor;
+    background: transparent; color: inherit; font-size: 0.65rem; cursor: pointer;
+    opacity: 0.5; transition: opacity 0.15s;
+  }
+  .list-header .fn-remove-btn:hover { opacity: 1; color: var(--danger); border-color: var(--danger); }
+  .fn-queue-area { padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; min-height: 30px; }
+
+  /* Blank insertion cell */
+  .insert-cell {
+    display: flex; align-items: center; justify-content: center;
+    padding: 6px 10px; border-radius: 8px; min-height: 28px;
+    border: 2px dashed rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.02);
+    color: rgba(255,255,255,0.18); font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .insert-cell:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.04); }
+  .list-panel-active .insert-cell {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    color: color-mix(in srgb, var(--accent) 70%, #fff);
+    animation: insertPulse 1.5s ease-in-out infinite;
+  }
+  .list-panel-active .insert-cell.fn-insert {
+  }
+  @keyframes insertPulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
+
+  .btn-icon { width: 20px; height: 20px; display: block; flex-shrink: 0; pointer-events: none; }
+  .fn-empty { opacity: 0.4; font-size: 0.7rem; font-style: italic; }
+
+  /* Queue */
+  .queue-area { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; min-height: 60px; }
+  .queue-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; border-radius: 8px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--tile)) 0%, var(--tile) 100%);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+    font-size: 0.95rem; user-select: none; position: relative;
+    animation: queueSlideIn 0.18s cubic-bezier(0.22,1,0.36,1);
+  }
+  @keyframes queueSlideIn { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:none; } }
+  .queue-item.active-step {
+    background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #000) 100%);
+    color: white; box-shadow: 0 2px 0 rgba(0,0,0,0.5), 0 0 12px color-mix(in srgb, var(--glow) 60%, transparent);
+  }
+  .queue-item.fn-call-item { }
+  .queue-item.fn-call-item.active-step { }
+  .queue-item .del-btn { opacity: 0.45; cursor: pointer; padding: 0 4px; font-size: 0.85rem; flex-shrink: 0; transition: opacity 0.12s, color 0.12s; }
+  .queue-item .del-btn:hover { opacity: 1; color: var(--danger); }
+  .queue-item[draggable=true] { cursor: default; }
+  .drag-grip { cursor: grab; opacity: 0.35; font-size: 0.8rem; padding: 0 6px 0 0; flex-shrink: 0; user-select: none; }
+  .queue-item:hover .drag-grip { opacity: 0.75; }
+  .queue-item.dragging { opacity: 0; height: 0; padding: 0; margin: 0; border: none; overflow: hidden; box-shadow: none; pointer-events: none; transition: none; }
+  .drop-placeholder {
+    height: 34px; border-radius: 8px; pointer-events: none;
+    border: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    transition: none;
+  }
+  .queue-call-preview { font-size: 0.68rem; opacity: 0.7; margin-left: 4px; }
+
+  .queue-actions { padding: 10px; display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-run {
+    flex: 2; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+    font-size: 1rem; font-weight: 900; position: relative; top: 0;
+    background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+    color: white; box-shadow: 0 5px 0 #14532d, 0 0 14px rgba(74,222,128,0.35);
+    transition: all 0.1s;
+  }
+  .btn-run:hover { filter: brightness(1.12); top:-1px; box-shadow: 0 6px 0 #14532d, 0 0 22px rgba(74,222,128,0.55); }
+  .btn-run:active { top:4px; box-shadow: 0 1px 0 #14532d; }
+  .btn-run:disabled { opacity: 0.4; cursor: not-allowed; top:0; box-shadow: none; }
+  .btn-clear {
+    flex: 1; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+    font-size: 0.85rem; font-weight: 800; position: relative; top: 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 40%, var(--tile)) 0%, color-mix(in srgb, var(--danger) 25%, var(--tile)) 100%);
+    color: var(--danger); box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+    transition: all 0.1s;
+  }
+  .btn-clear:hover { background: linear-gradient(180deg, var(--danger) 0%, color-mix(in srgb, var(--danger) 75%, #000) 100%); color: white; top:-1px; box-shadow: 0 5px 0 rgba(0,0,0,0.4); }
+  .btn-clear:active { top:3px; box-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+
+  /* ===== OVERLAYS — pin to sidebar, not full screen ===== */
+  .overlay {
+    display: none;
+    position: absolute; inset: 0;
+    background: rgba(6,11,20,0.92);
+    backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  .overlay.active { display: flex; animation: overlayIn 0.28s cubic-bezier(0.22,1,0.36,1); }
+  @keyframes overlayIn { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: none; } }
+  .modal {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--bg2) 85%, var(--accent) 15%) 0%, var(--bg2) 100%);
+    border: 2px solid color-mix(in srgb, var(--glow) 60%, transparent);
+    border-radius: 20px;
+    padding: 20px 18px; width: 100%; text-align: center;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--glow) 20%, transparent),
+      0 16px 32px rgba(0,0,0,0.6),
+      0 0 40px color-mix(in srgb, var(--glow) 20%, transparent);
+    animation: modalPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes modalPop { from { opacity:0; transform: scale(0.75); } to { opacity:1; transform: none; } }
+  .modal h2 { font-size: 1.5rem; text-shadow: 0 0 20px var(--glow); }
+  .modal p  { opacity: 0.85; line-height: 1.4; font-size: 0.85rem; }
+  .stars    { font-size: 1.6rem; letter-spacing: 4px; animation: starsReveal 0.6s ease; }
+  @keyframes starsReveal { from { transform: scale(0.4) rotate(-20deg); opacity:0; } to { transform: none; opacity:1; } }
+  .modal .btn-primary { align-self: center; padding: 10px 24px; font-size: 1rem; }
+  .modal .back-btn { align-self: center; padding: 6px 14px; font-size: 0.8rem; }
+
+  /* Locked banner */
+  .locked-banner {
+    display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--wall); border: 2px solid var(--accent); border-radius: 14px;
+    padding: 14px 28px; font-size: 1rem; font-weight: 800; z-index: 50; text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 20px color-mix(in srgb, var(--glow) 30%, transparent);
+    white-space: nowrap;
+  }
+  .locked-banner.active { display: block; animation: bannerBounce 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes bannerBounce { from { transform: translateX(-50%) translateY(20px); opacity:0; } to { transform: translateX(-50%) translateY(0); opacity:1; } }
+
+  /* Level select */
+  #screen-levels { gap: 20px; padding: 24px; justify-content: flex-start; }
+  .levels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; max-width: 480px; }
+  .level-tile {
+    aspect-ratio: 1; border-radius: 16px; border: none;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 20%, var(--tile)) 0%, var(--tile) 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: pointer;
+    font-size: 1.4rem; font-weight: 900; gap: 4px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.45), 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: all 0.12s; position: relative; top: 0;
+  }
+  .level-tile:hover {
+    background: linear-gradient(160deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #000) 100%);
+    top: -3px; box-shadow: 0 9px 0 rgba(0,0,0,0.45), 0 0 16px color-mix(in srgb, var(--glow) 50%, transparent);
+  }
+  .level-tile:active { top: 4px; box-shadow: 0 2px 0 rgba(0,0,0,0.45); }
+  .level-tile.locked { opacity: 0.33; cursor: not-allowed; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+  .level-tile.locked:hover { background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 20%, var(--tile)) 0%, var(--tile) 100%); top:0; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+  .level-tile.done { box-shadow: 0 6px 0 rgba(0,0,0,0.45), 0 0 0 2px var(--success), 0 0 14px color-mix(in srgb, var(--success) 35%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--success) 30%, var(--tile)) 0%, color-mix(in srgb, var(--success) 10%, var(--tile)) 100%); }
+  .level-tile .tile-stars { font-size: 1.1rem; }
+  .level-tile .tile-label { font-size: 0.65rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .mute-btn {
+    background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.7);
+    padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: color 0.15s;
+  }
+  .mute-btn:hover { color: #fff; }
+  .mute-btn.muted { color: rgba(255,255,255,0.35); }
+  .back-btn {
+    background: transparent; border: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    color: var(--accent2); border-radius: 10px; padding: 8px 18px; cursor: pointer;
+    font-size: 0.9rem; font-weight: 800; transition: all 0.15s; align-self: flex-start;
+  }
+  .back-btn:hover { background: var(--accent); color: white; box-shadow: 0 0 12px color-mix(in srgb, var(--glow) 40%, transparent); }
+
+  /* Bug hint */
+  .bug-hint {
+    background: linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.06) 100%);
+    border: 1px solid rgba(239,68,68,0.5); border-radius: 8px; padding: 8px 12px;
+    font-size: 0.78rem; font-weight: 700; color: var(--text); margin: 0 10px;
+    animation: bugPulse 2s ease-in-out infinite;
+  }
+  @keyframes bugPulse { 0%,100%{ border-color: rgba(239,68,68,0.4); } 50%{ border-color: rgba(239,68,68,0.9); box-shadow: 0 0 8px rgba(239,68,68,0.3); } }
+
+  /* Level description */
+  .level-desc { padding: 8px 10px; font-size: 0.78rem; opacity: 0.85; line-height: 1.4; border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); flex-shrink: 0; }
+
+  /* 3D cmd grid */
+  .cmd-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+
+  /* Connection status */
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; }
+  .conn-dot.online { background: var(--success); animation: connBlink 2s ease infinite; }
+  @keyframes connBlink { 0%,100%{ box-shadow: 0 0 4px var(--success); } 50%{ box-shadow: 0 0 10px var(--success); } }
+
+  /* Particle burst canvas */
+  #burst-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<canvas id="burst-canvas"></canvas>
+
+<!-- ===== START SCREEN ===== -->
+<div id="screen-start" class="screen active">
+  <div class="logo"><span>Robot</span> Coder</div>
+  <div class="subtitle">Program your robot. Collect power cells. Reach the dock!</div>
+
+  <div class="section-label">Robot Squad name</div>
+  <input id="team-name-input" class="name-input" type="text" maxlength="32" placeholder="e.g. Team Sparky" autocomplete="off" />
+  <div id="team-error" style="color:#f87171;font-size:0.82rem;display:none;"></div>
+
+  <button id="start-btn" class="btn-primary" disabled>Start Game!</button>
+  <div style="font-size:0.75rem;opacity:0.5;display:flex;align-items:center;gap:6px;">
+    <span class="conn-dot" id="conn-dot"></span><span id="conn-label">Connecting...</span>
+  </div>
+</div>
+
+<!-- ===== LEVEL SELECT SCREEN ===== -->
+<div id="screen-levels" class="screen">
+  <div style="display:flex;align-items:center;gap:12px;width:100%;max-width:480px;">
+    <button class="back-btn" id="back-to-start">&larr; Back</button>
+    <div style="flex:1;font-size:1.1rem;font-weight:700;">Choose a Level</div>
+    <div style="font-size:0.75rem;opacity:0.5;display:flex;align-items:center;gap:6px;">
+      <span class="conn-dot" id="conn-dot2"></span>
+    </div>
+  </div>
+  <div class="levels-grid" id="levels-grid"></div>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div>
+      <div class="team-name" id="header-team">Team</div>
+      <div class="level-info" id="header-level">Level 1</div>
+    </div>
+    <div id="header-stats" class="step-counter"></div>
+    <button class="mute-btn" id="btn-mute" title="Toggle sound">
+      <svg id="icon-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      <svg id="icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+    </button>
+    <button class="back-btn" id="back-to-levels" style="padding:6px 14px;font-size:0.8rem;">Levels</button>
+  </div>
+
+  <div class="game-body">
+    <div class="grid-area">
+      <div class="grid-wrap">
+        <canvas id="iso-canvas"></canvas>
+      </div>
+    </div>  <!-- .grid-area -->
+
+    <div class="sidebar">
+      <div class="level-desc" id="level-desc"></div>
+
+      <div class="sidebar-section" id="bug-hint-area" style="display:none">
+        <div class="bug-hint">&#9888; Bugs found! Delete wrong commands and fix the program.</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label" id="cmd-label">Commands</div>
+        <div class="cmd-3" id="cmd-grid">
+          <button class="cmd-btn" data-cmd="left" title="Turn Left">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1,4 1,10 7,10"/>
+              <path d="M3.51 15a9 9 0 1 0 .49-5"/>
+            </svg>
+            Left
+          </button>
+          <button class="cmd-btn" data-cmd="forward" title="Go Forward">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5,12 12,5 19,12"/>
+            </svg>
+            Fwd
+          </button>
+          <button class="cmd-btn" data-cmd="right" title="Turn Right">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23,4 23,10 17,10"/>
+              <path d="M20.49 15a9 9 0 1 1-.49-5"/>
+            </svg>
+            Right
+          </button>
+        </div>
+        <div class="cmd-dock" id="cmd-dock-row">
+          <button class="cmd-btn dock-btn" data-cmd="dock" title="Dock at station">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="14" width="16" height="6" rx="2"/>
+              <line x1="12" y1="3" x2="12" y2="14"/>
+              <polyline points="8,10 12,14 16,10"/>
+            </svg>
+            Dock
+          </button>
+        </div>
+      </div>
+
+      <div class="lists-area" id="lists-area">
+        <div class="list-panel list-panel-active" id="panel-program" data-target="program">
+          <div class="list-header list-header-program" data-target="program">
+            <span>&#9654; My Program</span>
+          </div>
+          <div class="queue-area" id="queue-area"></div>
+        </div>
+        <div id="fn-panels-area"></div>
+      </div>
+
+      <div id="add-fn-row" class="add-fn-row" style="display:none">
+        <button class="add-fn-btn" id="btn-add-fn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          New Function
+        </button>
+      </div>
+
+      <div class="queue-actions">
+        <button class="btn-clear" id="btn-clear">Clear</button>
+        <button class="btn-run" id="btn-run">▶ Run</button>
+      </div>
+
+      <!-- WIN / CRASH panels live inside sidebar so they never block the grid -->
+      <div class="overlay" id="overlay-win">
+        <div class="modal">
+          <div id="win-emoji" style="font-size:2.2rem;"></div>
+          <h2 id="win-title">Mission complete!</h2>
+          <p id="win-msg"></p>
+          <button class="btn-primary" id="btn-next-level">Next Level</button>
+          <button class="btn-primary" id="btn-retry-level" style="background:#6366f1;">Retry Level</button>
+          <button class="back-btn" id="btn-win-levels">Level Select</button>
+        </div>
+      </div>
+      <div class="overlay" id="overlay-crash">
+        <div class="modal">
+          <div style="font-size:2.2rem;">??</div>
+          <h2>Oops!</h2>
+          <p id="crash-msg">Robot hit a wall!</p>
+          <button class="btn-primary" id="btn-try-again">Try Again ??</button>
+        </div>
+      </div>
+    </div>
+  </div>  <!-- .game-body -->
+
+</div>  <!-- #screen-game -->
+
+<!-- ===== LOCKED BANNER ===== -->
+<div class="locked-banner" id="locked-banner">
+  &#127942; Nice work! Wait for your teacher to unlock the next levels.
+</div>
+
+<script>
+// =============================================
+//  ANIMATED BACKGROUND — robot/sci-fi starfield
+// =============================================
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  function rp() {
+    return {
+      x: Math.random() * W, y: Math.random() * H,
+      r: 0.4 + Math.random() * 1.8,
+      vx: (Math.random() - 0.5) * 0.12, vy: -0.05 - Math.random() * 0.2,
+      alpha: 0.15 + Math.random() * 0.55,
+      t: Math.random() * Math.PI * 2, ts: 0.012 + Math.random() * 0.025,
+    };
+  }
+  particles = Array.from({ length: 120 }, rp);
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of particles) {
+      p.t += p.ts;
+      const a = p.alpha * (0.55 + 0.45 * Math.sin(p.t));
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#00e5ff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+      if (p.r > 1.2) {
+        ctx.globalAlpha = a * 0.25;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.8, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy;
+      if (p.y < -8) { p.y = H + 4; p.x = Math.random() * W; }
+      if (p.x < -8) p.x = W + 4;
+      if (p.x > W + 8) p.x = -4;
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// =============================================
+//  WIN PARTICLE BURST
+// =============================================
+function spawnBurst(emoji) {
+  const canvas = document.getElementById('burst-canvas');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const count = 28;
+  const ps = Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.3;
+    const speed = 4 + Math.random() * 7;
+    return {
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 3,
+      alpha: 1, size: 18 + Math.random() * 14, life: 1,
+    };
+  });
+  let start = null;
+  function animate(ts) {
+    if (!start) start = ts;
+    const dt = (ts - start) / 1000;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.28;
+      p.life -= 0.022;
+      if (p.life <= 0) continue;
+      alive = true;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.font = `${p.size}px sans-serif`;
+      ctx.fillText(emoji, p.x, p.y);
+      ctx.restore();
+    }
+    if (alive) requestAnimationFrame(animate);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  requestAnimationFrame(animate);
+}
+
+// =============================================
+//  ROBOT THEME CONSTANTS
+// =============================================
+// (no theme switching — single robot world)
+
+// =============================================
+//  LEVEL DEFINITIONS
+// =============================================
+// Grid: 0=floor, 1=wall, 2=goal, 3=collectible
+// player: [row, col]  startDir: 0=N 1=E 2=S 3=W
+// Commands: 'forward', 'left' (turn left), 'right' (turn right)
+// maxSteps: enforced queue-item limit (pushes function use)
+// functionsUnlocked: shows function definition UI
+// isBugLevel + bugProgram: pre-loaded broken program to fix
+const LEVELS = [
+  // ---- Phase 1: Basic forward + turns ----
+  {
+    id: 1, title: "First Steps",
+    desc: "", grid: [
+      [ 0, 0, 0, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 1,
+    functionsUnlocked: false, minSteps: null, maxSteps: null, collectibles: [],
+  },
+  {
+    id: 2, title: "Turn the Corner",
+    desc: "", grid: [
+      [ 0, 0, 0, 0],
+      [-1,-1,-1, 0],
+      [-1,-1, 2, 0],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 3,
+    functionsUnlocked: false, minSteps: null, maxSteps: null, collectibles: [],
+  },
+  // ---- Phase 2: Collectibles ----
+  {
+    id: 3, title: "Power Cells",
+    desc: "", grid: [
+      [ 0, 0, 0, 2],
+      [ 0, 0, 0, 0],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 2,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [[1,3],[1,2]],
+  },
+  {
+    id: 4, title: "Criss-Cross",
+    desc: "", grid: [
+      [ 0, 0, 0, 0],
+      [ 0, 0, 0, 0],
+      [ 0, 0, 0, 0],
+      [ 0, 0, 0, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 4,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [[1,3],[2,0]],
+  },
+  {
+    id: 5, title: "Tight Squeeze",
+    desc: "", grid: [
+      [-1, 0, 2],
+      [ 0, 0,-1],
+    ],
+    player: [0,1], startDir: 1, cols: 3, rows: 2,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [[1,0]],
+  },
+  // ---- Phase 3: Portals ----
+  {
+    id: 6, title: "Portal Hop",
+    desc: "", grid: [
+      [ 0, 0, 0, 0],
+      [ 0,-1,-1, 0],
+      [ 0,-1,-1, 0],
+      [ 0, 0, 0, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 4,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [[3,1],[3,2]],
+    portals: [[[0,3],[3,0]]],
+  },
+  {
+    id: 7, title: "Portal Path",
+    desc: "", grid: [
+      [ 0, 0, 0, 2],
+      [ 0,-1,-1,-1],
+      [ 0,-1,-1,-1],
+      [ 0, 0,-1,-1],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 4,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [],
+    portals: [[[0,2],[3,1]]],
+  },
+  {
+    id: 8, title: "Portal Maze",
+    desc: "", grid: [
+      [ 0, 0, 0,-1],
+      [-1,-1,-1,-1],
+      [ 0, 0,-1, 0],
+      [-1, 0,-1, 0],
+      [-1, 0,-1, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 4, rows: 5,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [[2,1],[3,1]],
+    portals: [[[0,2],[2,0]],[[4,1],[2,3]]],
+  },
+  {
+    id: 9, title: "Portal Chains",
+    desc: "", grid: [
+      [ 0, 0, 0, 0, 2],
+      [-1,-1, 0,-1,-1],
+      [ 0,-1,-1,-1,-1],
+      [ 0, 0,-1,-1,-1],
+    ],
+    player: [0,0], startDir: 1, cols: 5, rows: 4,
+    functionsUnlocked: false, minSteps: null, maxSteps: null,
+    collectibles: [],
+    portals: [[[0,3],[3,1]],[[2,0],[1,2]]],
+  },
+  // ---- Phase 4: Bigger grids ----
+  {
+    id: 10, title: "The Spiral",
+    desc: "", grid: [
+      [ 0, 0, 0, 0, 0],
+      [ 0,-1,-1,-1, 0],
+      [ 0,-1,-1,-1, 0],
+      [ 0,-1,-1,-1, 0],
+      [ 2, 0, 0, 0, 0],
+    ],
+    player: [0,0], startDir: 1, cols: 5, rows: 5,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[0,4],[4,4]],
+  },
+  {
+    id: 11, title: "Zigzag",
+    desc: "", grid: [
+      [ 0, 0, 0],
+      [-1,-1, 0],
+      [ 0, 0, 0],
+      [ 0,-1,-1],
+      [ 2,-1,-1],
+    ],
+    player: [0,0], startDir: 1, cols: 3, rows: 5,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [],
+  },
+  {
+    id: 12, title: "Four Corners",
+    desc: "", grid: [
+      [ 0, 0, 0,-1,-1],
+      [ 0,-1, 2,-1,-1],
+      [ 0,-1, 0, 0, 0],
+      [ 0,-1,-1,-1, 0],
+      [ 0, 0, 0, 0, 0],
+    ],
+    player: [2,2], startDir: 1, cols: 5, rows: 5,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[2,4],[4,0],[4,4],[0,0]],
+  },
+  // ---- Phase 5: Complex portals ----
+  {
+    id: 13, title: "Portal Bridge",
+    desc: "", grid: [
+      [ 0, 0, 0, 0, 0,-1,-1,-1],
+      [-1,-1,-1,-1, 0,-1,-1,-1],
+      [-1,-1, 2,-1, 0,-1,-1,-1],
+      [-1,-1, 0,-1, 0,-1,-1,-1],
+      [-1,-1, 0,-1, 0, 0, 0, 0],
+      [ 0, 0, 0,-1,-1,-1,-1,-1],
+    ],
+    player: [0,0], startDir: 1, cols: 8, rows: 6,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[4,4]],
+    portals: [[[4,7],[5,0]]],
+  },
+  {
+    id: 14, title: "Around the Block",
+    desc: "", grid: [
+      [-1,-1,-1,-1,-1,-1, 0],
+      [-1,-1,-1,-1,-1,-1, 0],
+      [-1,-1,-1,-1,-1,-1, 0],
+      [ 0,-1, 0, 0, 0, 0, 0],
+      [ 0,-1,-1,-1,-1,-1, 0],
+      [ 0,-1,-1,-1,-1,-1, 0],
+      [ 0,-1,-1,-1,-1,-1, 2],
+    ],
+    player: [3,2], startDir: 1, cols: 7, rows: 7,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[3,0]],
+    portals: [[[6,0],[0,6]]],
+  },
+  {
+    id: 15, title: "Portal Gauntlet",
+    desc: "", grid: [
+      [ 0, 0, 0, 0, 0,-1,-1],
+      [-1, 0, 0, 0, 0,-1,-1],
+      [-1, 0, 0, 0, 0,-1,-1],
+      [-1, 0, 0, 0, 0, 0, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 7, rows: 4,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[2,1],[1,1],[2,2],[1,2],[2,3],[1,3],[2,4],[1,4]],
+    portals: [[[3,1],[0,2]],[[3,2],[0,3]],[[3,3],[0,4]]],
+  },
+  // ---- Phase 6: Path puzzles ----
+  {
+    id: 16, title: "Stairway",
+    desc: "", grid: [
+      [-1,-1,-1,-1, 2, 0, 0],
+      [-1,-1,-1,-1,-1,-1, 0],
+      [-1,-1,-1,-1, 0, 0, 0],
+      [-1,-1,-1,-1, 0,-1,-1],
+      [-1,-1, 0, 0, 0,-1,-1],
+      [-1,-1, 0,-1,-1,-1,-1],
+      [ 0, 0, 0,-1,-1,-1,-1],
+    ],
+    player: [6,0], startDir: 1, cols: 7, rows: 7,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [],
+  },
+  {
+    id: 17, title: "Shortcut",
+    desc: "", grid: [
+      [ 0, 0, 0, 0,-1,-1,-1,-1],
+      [-1,-1,-1, 0,-1,-1,-1,-1],
+      [-1,-1,-1, 0,-1, 2,-1,-1],
+      [-1,-1, 0, 0,-1, 0, 0, 0],
+    ],
+    player: [0,0], startDir: 1, cols: 8, rows: 4,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [],
+    portals: [[[3,2],[3,7]]],
+  },
+  {
+    id: 18, title: "Switchback",
+    desc: "", grid: [
+      [-1,-1, 0, 0],
+      [-1,-1,-1, 0],
+      [-1,-1, 0, 0],
+      [-1,-1, 0,-1],
+      [-1,-1, 0,-1],
+      [-1, 0, 0,-1],
+      [ 2, 0,-1,-1],
+    ],
+    player: [0,2], startDir: 1, cols: 4, rows: 7,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [],
+  },
+  {
+    id: 19, title: "Portal Express",
+    desc: "", grid: [
+      [-1,-1,-1,-1, 2],
+      [-1,-1,-1,-1, 0],
+      [ 0, 0, 0,-1, 0],
+      [ 0,-1, 0,-1, 0],
+      [ 0, 0, 0,-1, 0],
+    ],
+    player: [2,0], startDir: 1, cols: 5, rows: 5,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[4,2]],
+    portals: [[[3,0],[4,4]]],
+  },
+  {
+    id: 20, title: "Cascade",
+    desc: "", grid: [
+      [ 0, 0,-1,-1,-1,-1,-1],
+      [-1, 0, 0,-1,-1,-1,-1],
+      [-1,-1, 0, 0,-1,-1,-1],
+      [-1,-1,-1, 0, 0,-1,-1],
+      [-1,-1,-1,-1, 0, 0,-1],
+      [-1,-1,-1,-1,-1, 0, 0],
+      [-1,-1,-1,-1,-1,-1, 2],
+    ],
+    player: [0,0], startDir: 1, cols: 7, rows: 7,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [],
+  },
+  {
+    id: 21, title: "Plus Sign",
+    desc: "", grid: [
+      [-1,-1, 2,-1,-1],
+      [-1,-1, 0,-1,-1],
+      [ 0, 0, 0, 0, 0],
+      [-1,-1, 0,-1,-1],
+      [-1,-1, 0,-1,-1],
+    ],
+    player: [2,2], startDir: 1, cols: 5, rows: 5,
+    functionsUnlocked: true, minSteps: null, maxSteps: null,
+    collectibles: [[2,4],[2,0],[4,2]],
+  },
+];
+
+// Derive goal from grid (cell value 2)
+LEVELS.forEach(lvl => {
+  if (!lvl.goal) {
+    for (let r = 0; r < lvl.rows; r++) {
+      for (let c = 0; c < lvl.cols; c++) {
+        if (lvl.grid[r][c] === 2) lvl.goal = [r, c];
+      }
+    }
+  }
+});
+
+// =============================================
+//  STATE
+// =============================================
+const state = {
+  teamName: '',
+  unlockedLevels: {},  // { levelId: true/false } — populated from server
+  completedLevels: {}, // { levelId: starCount }
+  levelStats: {},      // { levelId: { runs, commands } }
+  currentLevel: null,
+  queue: [],     // [{type:'cmd',cmd:'forward'|'left'|'right'} | {type:'call',fn:'a'|'b'}]
+  fnDefs: {},  // dynamic: { f1: [], f2: [], ... }
+  running: false,
+  facing: 1,     // 0=N 1=E 2=S 3=W
+  playerPos: [0,0],
+  collectedSet: new Set(),
+  attempts: 0,
+  // Walking animation: interpolates robot position between tiles
+  robotAnim: {
+    fromPos: null,   // [r,c] start of current walk step
+    toPos:   null,   // [r,c] end of current walk step
+    t:       1,      // 0..1 progress (1 = at rest)
+    startMs: 0,
+    durMs:   0,
+  },
+  turnAnim: {
+    fromFacing: 1,   // facing we're turning FROM
+    toFacing:   1,   // facing we're turning TO
+    t:          1,   // 0..1 (1 = settled)
+    startMs:    0,
+    durMs:      320,
+  },
+  fallAnim: {
+    active: false,
+    t:      0,
+    startMs: 0,
+    durMs:  900,
+  },
+  collectAnims: [], // [{r, c, t, startMs, durMs}]
+  dockAnim: { active: false, t: 0, startMs: 0, durMs: 800 },
+  dockFailAnim: { active: false, t: 0, startMs: 0, durMs: 600 },
+  portalAnim: { active: false, phase: 'suck', t: 0, startMs: 0, durMs: 350, fromPos: null, toPos: null },
+};
+
+// =============================================
+//  WEBSOCKET
+// =============================================
+let ws = null;
+let wsReady = false;
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => {
+    wsReady = true;
+    setConnStatus(true);
+    if (state.teamName) {
+      ws.send(JSON.stringify({ type: 'team:register', name: state.teamName }));
+    }
+  };
+
+  ws.onclose = () => {
+    wsReady = false;
+    setConnStatus(false);
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => { ws.close(); };
+
+  ws.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'state:unlock') {
+      state.unlockedLevels = msg.unlockedLevels || {};
+      if (document.getElementById('screen-levels').classList.contains('active')) renderLevelSelect();
+    }
+    if (msg.type === 'team:registered') {
+      state.unlockedLevels = msg.unlockedLevels || {};
+      // Replace (not merge) with server data for this team
+      state.completedLevels = {};
+      state.levelStats = {};
+      if (msg.team.completedLevels) {
+        msg.team.completedLevels.forEach(id => { state.completedLevels[id] = 1; });
+      }
+      if (msg.team.levelStats) state.levelStats = msg.team.levelStats;
+      showScreen('screen-levels');
+      renderLevelSelect();
+    }
+    if (msg.type === 'team:register:fail') {
+      var errEl = document.getElementById('team-error');
+      if (errEl) { errEl.textContent = msg.reason || 'That name is taken.'; errEl.style.display = ''; }
+    }
+    if (msg.type === 'state:reset') {
+      state.completedLevels = {};
+      state.levelStats = {};
+      state.unlockedLevels = {};
+      showScreen('screen-start');
+    }
+  };
+}
+
+function setConnStatus(online) {
+  ['conn-dot','conn-dot2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'conn-dot' + (online ? ' online' : '');
+  });
+  document.getElementById('conn-label').textContent = online ? 'Connected' : 'Reconnecting...';
+}
+
+function sendProgress() {
+  if (!wsReady || !state.teamName) return;
+  ws.send(JSON.stringify({
+    type: 'team:progress',
+    level: state.currentLevel?.id || 1,
+    attempts: state.attempts,
+    completedLevels: Object.keys(state.completedLevels).map(Number),
+    levelStats: state.levelStats
+  }));
+}
+
+// =============================================
+//  SCREEN MANAGEMENT
+// =============================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =============================================
+//  START SCREEN LOGIC
+// =============================================
+const teamInput = document.getElementById('team-name-input');
+const startBtn  = document.getElementById('start-btn');
+
+teamInput.addEventListener('input', () => {
+  startBtn.disabled = teamInput.value.trim().length < 2;
+});
+
+startBtn.addEventListener('click', () => {
+  const name = teamInput.value.trim();
+  if (!name) return;
+  // Clear previous team data
+  state.completedLevels = {};
+  state.levelStats = {};
+  state.teamName = name;
+  var errEl = document.getElementById('team-error');
+  if (errEl) errEl.style.display = 'none';
+  if (wsReady) {
+    ws.send(JSON.stringify({ type: 'team:register', name }));
+  } else {
+    // offline fallback
+    showScreen('screen-levels');
+    renderLevelSelect();
+  }
+});
+
+// =============================================
+//  LEVEL SELECT
+// =============================================
+function renderLevelSelect() {
+  const grid = document.getElementById('levels-grid');
+  grid.innerHTML = '';
+  LEVELS.forEach(lvl => {
+    const locked = !state.unlockedLevels[lvl.id];
+    const done   = state.completedLevels[lvl.id];
+    const tile = document.createElement('div');
+    tile.className = 'level-tile' + (locked ? ' locked' : '') + (done ? ' done' : '');
+    tile.innerHTML = `
+      <span>${locked ? '🔒' : lvl.id}</span>
+      <span class="tile-stars">${done ? '&#9989;' : ''}</span>
+      <span class="tile-label">${lvl.title.replace(/[^\x20-\x7e]/g,'').trim()}</span>
+    `;
+    if (!locked) {
+      tile.addEventListener('click', () => startLevel(lvl));
+    }
+    grid.appendChild(tile);
+  });
+}
+
+document.getElementById('back-to-start').addEventListener('click', () => showScreen('screen-start'));
+
+// =============================================
+//  GAME: LEVEL SETUP
+// =============================================
+function startLevel(lvl) {
+  state.currentLevel = lvl;
+  state.running = false;
+  state.collectedSet = new Set();
+  state.collectAnims = [];
+  state.facing = lvl.startDir;
+  state.playerPos = [...lvl.player];
+  state.attempts = 0;
+  state.fnDefs = {};
+  state.fallAnim.active = false;
+  state.fallAnim.t = 0;
+  state.dockAnim.active = false;
+  state.dockAnim.t = 0;
+  state.dockFailAnim.active = false;
+  state.dockFailAnim.t = 0;
+  state.portalAnim.active = false;
+
+  // Reset queue
+  if (lvl.isBugLevel) {
+    state.queue = lvl.bugProgram.map(item => ({...item}));
+  } else {
+    state.queue = [];
+  }
+
+  showScreen('screen-game');
+  document.getElementById('header-team').textContent = state.teamName;
+  var headerLvl = 'Level ' + lvl.id + ': ' + lvl.title;
+  var prevStats = state.levelStats[lvl.id];
+  if (prevStats && prevStats.bestCommands) {
+    headerLvl += '  \u2714 Solved (best: ' + prevStats.bestCommands + ' cmds in ' + (prevStats.runsToBest || prevStats.runsToFirstSolve) + ' runs)';
+  }
+  document.getElementById('header-level').textContent = headerLvl;
+  document.getElementById('level-desc').textContent = '';
+  document.getElementById('level-desc').style.display = 'none';
+
+  // Function UI
+  document.getElementById('add-fn-row').style.display = lvl.functionsUnlocked ? '' : 'none';
+  var cmdGrid = document.getElementById('cmd-grid');
+  cmdGrid.querySelectorAll('.fn-call-btn').forEach(function(el) { el.remove(); });
+  cmdGrid.style.gridTemplateColumns = '';
+  updateSidebarWidth(0);
+  document.getElementById('fn-panels-area').innerHTML = '';
+  state.fnDefs = {};
+  cmdTarget = 'program';
+  setTarget('program');
+
+  // Bug hint
+  document.getElementById('bug-hint-area').style.display = lvl.isBugLevel ? '' : 'none';
+
+  renderIso();
+  startIsoLoop();
+  renderQueue();
+  renderFnDefs();
+  updateStepCounter();
+}
+
+// =============================================
+//  2D TOP-DOWN RENDERER
+// =============================================
+let isoAnimId = null;
+let _CELL, _OX, _OY, _ROWS, _COLS;
+
+function renderGrid() { renderIso(); }
+
+// ---- Tile drawing ----
+
+function drawTile(ctx, col, row, fill, stroke) {
+  const x = _OX + col * _CELL, y = _OY + row * _CELL;
+  const pad = 2;
+  // Subtle outer glow to separate from void
+  ctx.save();
+  ctx.shadowColor = 'rgba(100,160,255,0.25)';
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x + pad, y + pad, _CELL - pad*2, _CELL - pad*2, 5);
+  ctx.fill();
+  ctx.restore();
+  // Bright border
+  ctx.strokeStyle = stroke; ctx.lineWidth = 1.2;
+  ctx.stroke();
+  // Inner highlight along top-left edge
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(x + pad, y + pad, _CELL - pad*2, (_CELL - pad*2) * 0.08, [5, 5, 0, 0]);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWall(ctx, col, row) {
+  const x = _OX + col * _CELL, y = _OY + row * _CELL;
+  const pad = 1;
+  // Wall body
+  ctx.fillStyle = '#1e2d44';
+  ctx.beginPath(); ctx.roundRect(x+pad, y+pad, _CELL-pad*2, _CELL-pad*2, 4); ctx.fill();
+  // Inner bevel
+  const m = _CELL * 0.15;
+  ctx.fillStyle = '#2a3d58';
+  ctx.beginPath(); ctx.roundRect(x+m, y+m, _CELL-m*2, _CELL-m*2, 3); ctx.fill();
+  // Rivets
+  ctx.fillStyle = '#3d5470';
+  const rv = _CELL * 0.12;
+  for (const [dx,dy] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]) {
+    ctx.beginPath(); ctx.arc(x + _CELL*dx, y + _CELL*dy, rv, 0, Math.PI*2); ctx.fill();
+  }
+  // Border
+  ctx.strokeStyle = '#3a5575'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x+pad, y+pad, _CELL-pad*2, _CELL-pad*2, 4); ctx.stroke();
+}
+
+function drawDock2D(ctx, col, row) {
+  const x = _OX + col * _CELL, y = _OY + row * _CELL;
+  const cx = x + _CELL/2, cy = y + _CELL/2;
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 500);
+
+  // Glowing green pad
+  const pad = _CELL * 0.08;
+  ctx.fillStyle = '#0a3520';
+  ctx.beginPath(); ctx.roundRect(x+pad, y+pad, _CELL-pad*2, _CELL-pad*2, 4); ctx.fill();
+
+  // Pulsing glow
+  const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, _CELL*0.45);
+  gr.addColorStop(0, `rgba(0,204,102,${0.25 + 0.2*pulse})`);
+  gr.addColorStop(1, 'transparent');
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.arc(cx, cy, _CELL*0.45, 0, Math.PI*2); ctx.fill();
+
+  // Chevron arrows pointing inward
+  ctx.strokeStyle = `rgba(0,204,102,${0.5+0.3*pulse})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  const s = _CELL * 0.12;
+  for (const a of [0, Math.PI/2, Math.PI, Math.PI*1.5]) {
+    const dx = Math.cos(a), dy = Math.sin(a);
+    const bx = cx + dx*_CELL*0.35, by = cy + dy*_CELL*0.35;
+    ctx.beginPath();
+    ctx.moveTo(bx - dy*s - dx*s, by + dx*s - dy*s);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(bx + dy*s - dx*s, by - dx*s - dy*s);
+    ctx.stroke();
+  }
+
+  // Lightning bolt
+  ctx.font = `${_CELL*0.35}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = `rgba(0,204,102,${0.7+0.3*pulse})`;
+  ctx.fillText('\u26A1', cx, cy);
+
+  // Border
+  ctx.strokeStyle = `rgba(0,204,102,${0.4+0.3*pulse})`; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(x+pad, y+pad, _CELL-pad*2, _CELL-pad*2, 4); ctx.stroke();
+}
+
+function drawNugget2D(ctx, col, row, bob) {
+  const cx = _OX + col * _CELL + _CELL/2;
+  const cy = _OY + row * _CELL + _CELL/2 + bob * 0.04;
+  const r = _CELL * 0.18;
+
+  // Outer glow
+  const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, r*3);
+  og.addColorStop(0, 'rgba(255,220,0,0.4)'); og.addColorStop(0.5, 'rgba(255,160,0,0.15)'); og.addColorStop(1, 'transparent');
+  ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, r*3, 0, Math.PI*2); ctx.fill();
+
+  // Core
+  const cg = ctx.createRadialGradient(cx - r*0.2, cy - r*0.2, 0, cx, cy, r);
+  cg.addColorStop(0, '#fff7b0'); cg.addColorStop(0.45, '#ffd700'); cg.addColorStop(1, '#ff7700');
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+
+  // Specular
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath(); ctx.arc(cx - r*0.3, cy - r*0.3, r*0.28, 0, Math.PI*2); ctx.fill();
+
+  // Bolt
+  ctx.font = `${r*1.1}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff';
+  ctx.fillText('\u26A1', cx, cy + r*0.05); ctx.restore();
+}
+
+function drawPortal2D(ctx, col, row, bob, color) {
+  const cx = _OX + col * _CELL + _CELL/2;
+  const cy = _OY + row * _CELL + _CELL/2;
+  const r = _CELL * 0.32;
+  const pulse = Math.sin(Date.now() / 300) * 0.12 + 1;
+
+  // Outer glow ring
+  ctx.save();
+  ctx.globalAlpha = 0.25 + Math.sin(Date.now() / 400) * 0.1;
+  const glow = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 2.2);
+  glow.addColorStop(0, color); glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // Spinning ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Date.now() / 600);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * pulse, r * pulse * 0.65, 0, 0, Math.PI * 1.6);
+  ctx.stroke();
+  ctx.restore();
+
+  // Inner swirl
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-Date.now() / 450);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.55 * pulse, r * 0.55 * pulse * 0.65, 0, 0, Math.PI * 1.3);
+  ctx.stroke();
+  ctx.restore();
+
+  // Center dot
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.15, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// ---- Robot drawing — top-down view (astronaut-style) ----
+
+function drawRobot2D(ctx, col, row, facing, walkT, turnT) {
+  const cx = _OX + col * _CELL + _CELL/2;
+  const cy = _OY + row * _CELL + _CELL/2;
+  const S = _CELL * 0.44;
+
+  // Facing angle (smooth turn interpolation)
+  let angle;
+  if (turnT < 1) {
+    const fromA = state.turnAnim.fromFacing * Math.PI / 2;
+    let toA = state.turnAnim.toFacing * Math.PI / 2;
+    let diff = toA - fromA;
+    if (diff > Math.PI)  diff -= Math.PI * 2;
+    if (diff < -Math.PI) diff += Math.PI * 2;
+    const ease = turnT < 0.5 ? 2*turnT*turnT : -1+(4-2*turnT)*turnT;
+    angle = fromA + diff * ease;
+  } else {
+    angle = facing * Math.PI / 2;
+  }
+
+  const isWalking = walkT > 0 && walkT < 1;
+  const isTurning = turnT > 0 && turnT < 1;
+  let limbPhase = 0, limbAmp = 0;
+  if (isWalking) { limbPhase = walkT * 2; limbAmp = 0.5; }
+  else if (isTurning) { limbPhase = turnT * 2.5; limbAmp = 0.55; } // full shuffle during turn
+
+  const limbSwing = Math.sin(limbPhase * Math.PI * 2) * limbAmp;
+  const bodyBob = isWalking ? Math.sin(walkT * Math.PI * 4) * S * 0.025 : 0;
+  const breathe = Math.sin(Date.now() / 600) * S * 0.012;
+
+  ctx.save();
+  ctx.translate(cx, cy + bodyBob);
+  ctx.rotate(angle);
+  ctx.translate(0, S*0.15); // shift all parts rearward in local space so head centers on the grid cell
+  // Local coords: -Y = forward, +Y = back
+
+  // ===== SHADOW — centered under body =====
+  ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(0, -S*0.08, S*0.90, S*0.55, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ===== FEET — IN FRONT of robot (-Y side), swing forward/back =====
+  const footW = S*0.34, footH = S*0.48;
+  const footSpread = S*0.44;
+  const footFrontY = -S*0.55;
+  // Left foot
+  ctx.save(); ctx.translate(-footSpread, footFrontY + limbSwing * S*0.35);
+  ctx.fillStyle = '#5a7a8a';
+  ctx.beginPath(); ctx.ellipse(0, 0, footW/2, footH/2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8ab0c0'; ctx.lineWidth = 1.2; ctx.stroke();
+  // Boot highlight strip
+  ctx.strokeStyle = 'rgba(180,220,235,0.5)'; ctx.lineWidth = 1.0;
+  ctx.beginPath(); ctx.ellipse(0, -footH*0.18, footW*0.34, footH*0.14, 0, Math.PI, 0); ctx.stroke();
+  ctx.restore();
+  // Right foot
+  ctx.save(); ctx.translate(footSpread, footFrontY - limbSwing * S*0.35);
+  ctx.fillStyle = '#5a7a8a';
+  ctx.beginPath(); ctx.ellipse(0, 0, footW/2, footH/2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8ab0c0'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(180,220,235,0.5)'; ctx.lineWidth = 1.0;
+  ctx.beginPath(); ctx.ellipse(0, -footH*0.18, footW*0.34, footH*0.14, 0, Math.PI, 0); ctx.stroke();
+  ctx.restore();
+
+  // ===== ARMS — angled forward, grippers toward front =====
+  const armLen = S*0.55, armW = S*0.24;
+  ctx.fillStyle = '#4a5c6e';
+  // Left arm
+  ctx.save(); ctx.translate(-S*0.76, -S*0.18 - limbSwing * S*0.20);
+  ctx.rotate(-0.30 - limbSwing * 0.35);
+  ctx.beginPath(); ctx.roundRect(-armW/2, -armLen*0.5, armW, armLen, armW/2); ctx.fill();
+  ctx.strokeStyle = '#5a6e80'; ctx.lineWidth = 0.8; ctx.stroke();
+  // Hand — four small finger stubs fanned toward front
+  const hx = 0, hy = -armLen*0.50;
+  const fingerColors = ['#6a9aaa','#5a8a9a','#6a9aaa','#5a8a9a'];
+  const fingerAngles = [-0.45, -0.15, 0.15, 0.45];
+  fingerAngles.forEach((fa2, fi) => {
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(fa2);
+    ctx.fillStyle = fingerColors[fi];
+    ctx.beginPath(); ctx.roundRect(-S*0.04, -S*0.13, S*0.08, S*0.14, S*0.04); ctx.fill();
+    ctx.strokeStyle = '#4a7080'; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.restore();
+  });
+  // Palm base
+  ctx.fillStyle = '#5a8a9a';
+  ctx.beginPath(); ctx.ellipse(hx, hy + S*0.03, armW*0.46, S*0.09, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // Right arm
+  ctx.save(); ctx.translate(S*0.76, -S*0.18 + limbSwing * S*0.20);
+  ctx.rotate(0.30 + limbSwing * 0.35);
+  ctx.beginPath(); ctx.roundRect(-armW/2, -armLen*0.5, armW, armLen, armW/2); ctx.fill();
+  ctx.strokeStyle = '#5a6e80'; ctx.lineWidth = 0.8; ctx.stroke();
+  fingerAngles.forEach((fa2, fi) => {
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(fa2);
+    ctx.fillStyle = fingerColors[fi];
+    ctx.beginPath(); ctx.roundRect(-S*0.04, -S*0.13, S*0.08, S*0.14, S*0.04); ctx.fill();
+    ctx.strokeStyle = '#4a7080'; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.restore();
+  });
+  ctx.fillStyle = '#5a8a9a';
+  ctx.beginPath(); ctx.ellipse(hx, hy + S*0.03, armW*0.46, S*0.09, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ===== BODY — shifted forward so back doesn't protrude =====
+  const bw = S*1.05 + breathe, bh = S*0.80 + breathe;
+  const bg = ctx.createRadialGradient(-S*0.15, -S*0.15, 0, 0, 0, S*1.1);
+  bg.addColorStop(0, '#6a7e94'); bg.addColorStop(0.6, '#4a5c6e'); bg.addColorStop(1, '#3a4a5a');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -S*0.08, bw/2, bh/2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#5a7088'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(0, -S*0.08, bw/2, bh/2, 0, 0, Math.PI*2); ctx.stroke();
+
+  // Shoulder pads
+  for (const side of [-1, 1]) {
+    const spx = side * S*0.55, spy = -S*0.1;
+    const sg = ctx.createRadialGradient(spx, spy, 0, spx, spy, S*0.3);
+    sg.addColorStop(0, '#7a8ea4'); sg.addColorStop(1, '#4a5c6e');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.ellipse(spx, spy, S*0.28, S*0.33, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ===== HEAD / HELMET =====
+  const headR = S*0.54;
+  const headY = -S*0.20;
+
+  // Helmet dome
+  const hRing = ctx.createRadialGradient(-headR*0.15, headY - headR*0.1, headR*0.3, 0, headY, headR);
+  hRing.addColorStop(0, '#9aaeC4'); hRing.addColorStop(0.6, '#6a7e94'); hRing.addColorStop(1, '#4a5a6a');
+  ctx.fillStyle = hRing;
+  ctx.beginPath(); ctx.arc(0, headY, headR, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8a9eb4'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, headY, headR, 0, Math.PI*2); ctx.stroke();
+
+  // ===== BOLD ARROW CREST — large dark arrow covering top of helmet =====
+  const arW = S*0.34;
+  const arTip = headY - headR - S*0.20;
+  const arWingY = headY - headR*0.15;
+  const arWingW = S*0.46;
+  const arNeckY = headY + headR*0.05;
+  const arTailY = headY + headR*0.85;
+
+  // Arrow glow
+  ctx.save(); ctx.globalAlpha = 0.3;
+  ctx.fillStyle = 'rgba(0,180,220,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(0, arTip - S*0.04);
+  ctx.lineTo(-arWingW - S*0.06, arWingY + S*0.02);
+  ctx.lineTo(-arW*0.45 - S*0.04, arNeckY);
+  ctx.lineTo(-arW*0.45 - S*0.04, arTailY + S*0.04);
+  ctx.lineTo(arW*0.45 + S*0.04, arTailY + S*0.04);
+  ctx.lineTo(arW*0.45 + S*0.04, arNeckY);
+  ctx.lineTo(arWingW + S*0.06, arWingY + S*0.02);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // Arrow body (dark, bold)
+  const arFill = ctx.createLinearGradient(0, arTip, 0, arTailY);
+  arFill.addColorStop(0, '#3a4a5e');
+  arFill.addColorStop(0.3, '#2e3e50');
+  arFill.addColorStop(0.7, '#28384a');
+  arFill.addColorStop(1, '#222e3c');
+  ctx.fillStyle = arFill;
+  ctx.beginPath();
+  ctx.moveTo(0, arTip);
+  ctx.lineTo(-arWingW, arWingY);
+  ctx.lineTo(-arW*0.45, arNeckY);
+  ctx.lineTo(-arW*0.45, arTailY);
+  ctx.lineTo(arW*0.45, arTailY);
+  ctx.lineTo(arW*0.45, arNeckY);
+  ctx.lineTo(arWingW, arWingY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Edge highlights
+  ctx.strokeStyle = 'rgba(120,180,210,0.6)'; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Center spine
+  ctx.strokeStyle = 'rgba(160,210,240,0.35)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0, arTip + S*0.04); ctx.lineTo(0, arTailY - S*0.04); ctx.stroke();
+
+  // Glowing tip
+  const tipG = ctx.createRadialGradient(0, arTip, 0, 0, arTip, S*0.14);
+  tipG.addColorStop(0, 'rgba(0,255,255,0.7)'); tipG.addColorStop(1, 'transparent');
+  ctx.fillStyle = tipG;
+  ctx.beginPath(); ctx.arc(0, arTip, S*0.14, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#a0f0ff';
+  ctx.beginPath(); ctx.arc(0, arTip, S*0.035, 0, Math.PI*2); ctx.fill();
+
+  // ===== VISOR — D-shape: flat at back (+Y), dome at front (-Y) =====
+  const visorR = headR * 0.72;
+  const visorY = headY - headR*0.12;
+  const visorCutY = visorY + visorR * 0.30;
+
+  const vg = ctx.createLinearGradient(0, visorY - visorR, 0, visorCutY);
+  vg.addColorStop(0, '#0a2a40'); vg.addColorStop(0.5, '#0d3a5a');
+  vg.addColorStop(0.85, '#1a5070'); vg.addColorStop(1, '#1a3a50');
+
+  const cutAngle = Math.asin(Math.min(1, (visorCutY - visorY) / visorR));
+  ctx.fillStyle = vg;
+  ctx.beginPath();
+  ctx.arc(0, visorY, visorR, cutAngle, Math.PI - cutAngle);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#7a9ab0'; ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.arc(0, visorY, visorR, cutAngle, Math.PI - cutAngle);
+  ctx.closePath();
+  ctx.stroke();
+
+  // ===== EYES — small forward-facing truncated circles, pupils forward =====
+  const eyeR = S*0.08;
+  const eyeY = visorY - visorR*0.15;
+  const eyeSpread = visorR * 0.50;
+  for (const ex of [-eyeSpread, eyeSpread]) {
+    // Glow
+    const eg = ctx.createRadialGradient(ex, eyeY, 0, ex, eyeY, eyeR*2.5);
+    eg.addColorStop(0, 'rgba(0,229,255,0.4)'); eg.addColorStop(1, 'transparent');
+    ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ex, eyeY, eyeR*2.5, 0, Math.PI*2); ctx.fill();
+
+    // Sclera — truncated (flat at back)
+    ctx.fillStyle = '#e0f0ff';
+    ctx.beginPath();
+    ctx.arc(ex, eyeY, eyeR, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ex, eyeY, eyeR, -0.15, Math.PI + 0.15, true);
+    ctx.closePath();
+    ctx.fill();
+
+    // Pupil — forward
+    ctx.fillStyle = '#001820';
+    ctx.beginPath(); ctx.arc(ex, eyeY - eyeR*0.30, eyeR*0.38, 0, Math.PI*2); ctx.fill();
+
+    // Specular
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(ex - eyeR*0.22, eyeY - eyeR*0.45, eyeR*0.17, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Visor reflection
+  ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.ellipse(-visorR*0.25, visorY - visorR*0.55, visorR*0.45, visorR*0.15, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ---- Main render ----
+
+function renderIso() {
+  const canvas = document.getElementById('iso-canvas');
+  if (!canvas) return;
+  const lvl = state.currentLevel;
+  if (!lvl) return;
+
+  const ctx = canvas.getContext('2d');
+  const area = canvas.closest('.grid-area').getBoundingClientRect();
+  const aW = Math.max(area.width - 20, 100);
+  const aH = Math.max(area.height - 20, 100);
+
+  _ROWS = lvl.rows; _COLS = lvl.cols;
+  _CELL = Math.min(Math.floor(aW / _COLS), Math.floor(aH / _ROWS), 90);
+
+  // Add one cell of padding on each side so off-grid robots remain visible
+  const pad = _CELL;
+  const cw = _COLS * _CELL + pad * 2 + 2;
+  const ch = _ROWS * _CELL + pad * 2 + 2;
+  canvas.width = cw;
+  canvas.height = ch;
+  _OX = pad + 1; _OY = pad + 1;
+
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Walk animation (lazy-start: startMs=0 means "start on first render frame")
+  const anim = state.robotAnim;
+  if (anim.t < 1 && anim.durMs > 0) {
+    if (!anim.startMs) anim.startMs = Date.now();
+    anim.t = Math.min(1, (Date.now() - anim.startMs) / anim.durMs);
+  }
+
+  // Turn animation (lazy-start)
+  const ta = state.turnAnim;
+  if (ta.t < 1 && ta.durMs > 0) {
+    if (!ta.startMs) ta.startMs = Date.now();
+    ta.t = Math.min(1, (Date.now() - ta.startMs) / ta.durMs);
+  }
+
+  // Fall animation (lazy-start)
+  const fa = state.fallAnim;
+  if (fa.active) {
+    if (!fa.startMs) fa.startMs = Date.now();
+    fa.t = Math.min(1, (Date.now() - fa.startMs) / fa.durMs);
+  }
+
+  // Robot grid position (interpolated during walk, or frozen at toPos during fall)
+  let robotCol, robotRow, robotWalkT = 0;
+  if (fa.active && anim.toPos) {
+    // During fall: stay at the off-grid destination, don't snap back
+    robotCol = anim.toPos[1];
+    robotRow = anim.toPos[0];
+    robotWalkT = 1;
+  } else if (anim.t < 1 && anim.fromPos && anim.toPos) {
+    const ease = anim.t < 0.5 ? 2*anim.t*anim.t : -1+(4-2*anim.t)*anim.t;
+    robotCol = anim.fromPos[1] + (anim.toPos[1] - anim.fromPos[1]) * ease;
+    robotRow = anim.fromPos[0] + (anim.toPos[0] - anim.fromPos[0]) * ease;
+    robotWalkT = anim.t;
+  } else {
+    robotCol = state.playerPos[1];
+    robotRow = state.playerPos[0];
+  }
+
+  const bob = Math.sin(Date.now() / 420) * 3;
+
+  // Draw tiles
+  for (let r = 0; r < _ROWS; r++) {
+    for (let c = 0; c < _COLS; c++) {
+      const val = lvl.grid[r][c];
+      if (val === -1) continue; // void cell — don't draw
+      if (val === 1) {
+        drawWall(ctx, c, r);
+      } else {
+        const alt = (r + c) % 2 === 0;
+        drawTile(ctx, c, r, alt ? '#1f3350' : '#172842', '#3a5a80');
+      }
+    }
+  }
+
+  // Draw goals, collectibles, and portals
+  for (let r = 0; r < _ROWS; r++) {
+    for (let c = 0; c < _COLS; c++) {
+      const isGoal = lvl.goal[0] === r && lvl.goal[1] === c;
+      const isCollect = lvl.collectibles.some(([cr,cc]) => cr === r && cc === c)
+                        && !state.collectedSet.has(`${r},${c}`);
+      if (isGoal) drawDock2D(ctx, c, r);
+      if (isCollect) drawNugget2D(ctx, c, r, bob);
+    }
+  }
+
+  // Draw collect (absorb) animations
+  for (let i = state.collectAnims.length - 1; i >= 0; i--) {
+    const ca = state.collectAnims[i];
+    if (!ca.startMs) ca.startMs = Date.now();
+    ca.t = Math.min(1, (Date.now() - ca.startMs) / ca.durMs);
+    if (ca.t >= 1) { state.collectAnims.splice(i, 1); continue; }
+    const ease = ca.t < 0.5 ? 2*ca.t*ca.t : -1+(4-2*ca.t)*ca.t;
+    const cx = _OX + ca.c * _CELL + _CELL/2;
+    const cy = _OY + ca.r * _CELL + _CELL/2;
+    // Shrink toward robot center
+    const rcx = _OX + robotCol * _CELL + _CELL/2;
+    const rcy = _OY + robotRow * _CELL + _CELL/2;
+    const px = cx + (rcx - cx) * ease;
+    const py = cy + (rcy - cy) * ease;
+    const scale = Math.max(0.01, 1 - ease);
+    const glow = 1 + ease * 2;
+    ctx.save();
+    ctx.globalAlpha = 1 - ease * 0.8;
+    ctx.translate(px, py);
+    ctx.scale(scale * glow, scale * glow);
+    // Draw a glowing orb
+    const gr = _CELL * 0.18;
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
+    cg.addColorStop(0, '#fff7b0'); cg.addColorStop(0.45, '#ffd700'); cg.addColorStop(1, '#ff7700');
+    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, gr, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw portals
+  if (lvl.portals) {
+    const portalColors = ['#a855f7', '#f59e0b', '#06b6d4', '#ef4444'];
+    lvl.portals.forEach((pair, pi) => {
+      const color = portalColors[pi % portalColors.length];
+      pair.forEach(([pr, pc]) => {
+        drawPortal2D(ctx, pc, pr, bob, color);
+      });
+    });
+  }
+
+  // Draw robot on top
+  if (fa.active && fa.t > 0) {
+    // Falling into void: shrink, spin, fade
+    const ft = fa.t < 0.5 ? 2*fa.t*fa.t : -1+(4-2*fa.t)*fa.t; // ease in-out
+    const scale = Math.max(0.01, 1 - ft * 0.98);
+    const spin = ft * Math.PI * 5;
+    const opacity = Math.max(0, 1 - ft * 1.3);
+    const rcx = _OX + robotCol * _CELL + _CELL/2;
+    const rcy = _OY + robotRow * _CELL + _CELL/2;
+    ctx.save();
+    ctx.translate(rcx, rcy);
+    ctx.rotate(spin);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = opacity;
+    ctx.translate(-rcx, -rcy);
+    drawRobot2D(ctx, robotCol, robotRow, state.facing, 0, 1);
+    ctx.restore();
+  } else if (state.portalAnim.active) {
+    // Portal suck / reveal animation
+    const pa = state.portalAnim;
+    if (!pa.startMs) pa.startMs = Date.now();
+    pa.t = Math.min(1, (Date.now() - pa.startMs) / pa.durMs);
+    const ease = pa.t < 0.5 ? 2*pa.t*pa.t : -1+(4-2*pa.t)*pa.t;
+    const pos = pa.phase === 'suck' ? pa.fromPos : pa.toPos;
+    const pcx = _OX + pos[1] * _CELL + _CELL/2;
+    const pcy = _OY + pos[0] * _CELL + _CELL/2;
+    // progress: suck goes 1->0, reveal goes 0->1
+    const s = pa.phase === 'suck' ? (1 - ease) : ease;
+    // Swirl glow around portal
+    ctx.save();
+    ctx.globalAlpha = 0.5 * (1 - Math.abs(s - 0.5) * 2);
+    const pg = ctx.createRadialGradient(pcx, pcy, 0, pcx, pcy, _CELL * 0.7);
+    pg.addColorStop(0, '#a78bfa'); pg.addColorStop(0.5, 'rgba(167,139,250,0.3)'); pg.addColorStop(1, 'transparent');
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(pcx, pcy, _CELL * 0.7, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Robot shrinks/spins into portal or grows/unspins out
+    const scale = Math.max(0.05, s);
+    const spin = (1 - s) * Math.PI * 2 * (pa.phase === 'suck' ? 1 : -1);
+    ctx.save();
+    ctx.translate(pcx, pcy);
+    ctx.rotate(spin);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = Math.max(0.1, s);
+    ctx.translate(-pcx, -pcy);
+    drawRobot2D(ctx, pos[1], pos[0], state.facing, 0, 1);
+    ctx.restore();
+  } else if (state.dockAnim.active) {
+    // Docking animation: robot sinks down, shrinks, green glow pulses
+    const da = state.dockAnim;
+    if (!da.startMs) da.startMs = Date.now();
+    da.t = Math.min(1, (Date.now() - da.startMs) / da.durMs);
+    const ease = da.t < 0.5 ? 2*da.t*da.t : -1+(4-2*da.t)*da.t;
+    const rcx = _OX + robotCol * _CELL + _CELL/2;
+    const rcy = _OY + robotRow * _CELL + _CELL/2;
+    // Green dock glow expanding
+    ctx.save();
+    ctx.globalAlpha = 0.3 + ease * 0.4;
+    const dg = ctx.createRadialGradient(rcx, rcy, 0, rcx, rcy, _CELL * (0.5 + ease * 0.8));
+    dg.addColorStop(0, '#4ade80'); dg.addColorStop(0.6, 'rgba(74,222,128,0.3)'); dg.addColorStop(1, 'transparent');
+    ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(rcx, rcy, _CELL * (0.5 + ease * 0.8), 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Robot shrinks and sinks
+    const scale = Math.max(0.05, 1 - ease * 0.85);
+    const sinkY = ease * _CELL * 0.15;
+    ctx.save();
+    ctx.translate(rcx, rcy + sinkY);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = Math.max(0, 1 - ease * 0.6);
+    ctx.translate(-rcx, -rcy);
+    drawRobot2D(ctx, robotCol, robotRow, state.facing, 0, 1);
+    ctx.restore();
+    // Green checkmark appears at end
+    if (ease > 0.6) {
+      ctx.save();
+      ctx.globalAlpha = (ease - 0.6) / 0.4;
+      ctx.font = `bold ${_CELL * 0.5}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#4ade80';
+      ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 12;
+      ctx.fillText('\u2713', rcx, rcy);
+      ctx.restore();
+    }
+  } else if (state.dockFailAnim.active) {
+    // Dock failure: bright red halo/cloud, robot shakes
+    const df = state.dockFailAnim;
+    if (!df.startMs) df.startMs = Date.now();
+    df.t = Math.min(1, (Date.now() - df.startMs) / df.durMs);
+    const ease = df.t < 0.5 ? 2*df.t*df.t : -1+(4-2*df.t)*df.t;
+    const rcx = _OX + robotCol * _CELL + _CELL/2;
+    const rcy = _OY + robotRow * _CELL + _CELL/2;
+    // Bright red halo — expands then fades
+    const haloR = _CELL * (0.6 + ease * 0.9);
+    const haloAlpha = (df.t < 0.3 ? df.t / 0.3 : 1 - (df.t - 0.3) / 0.7) * 0.7;
+    ctx.save();
+    ctx.globalAlpha = haloAlpha;
+    const rg = ctx.createRadialGradient(rcx, rcy, 0, rcx, rcy, haloR);
+    rg.addColorStop(0, '#ff3333');
+    rg.addColorStop(0.35, 'rgba(255,60,60,0.6)');
+    rg.addColorStop(0.7, 'rgba(239,68,68,0.2)');
+    rg.addColorStop(1, 'transparent');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(rcx, rcy, haloR, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Robot shakes side-to-side
+    const shakeX = Math.sin(df.t * Math.PI * 6) * _CELL * 0.08 * (1 - ease);
+    ctx.save();
+    ctx.translate(shakeX, 0);
+    drawRobot2D(ctx, robotCol, robotRow, state.facing, 0, 1);
+    ctx.restore();
+  } else {
+    drawRobot2D(ctx, robotCol, robotRow, state.facing, robotWalkT, ta.t);
+  }
+}
+
+function startIsoLoop() {
+  if (isoAnimId) return;
+  function loop() {
+    if (!document.getElementById('screen-game').classList.contains('active')) {
+      isoAnimId = null; return;
+    }
+    renderIso();
+    isoAnimId = requestAnimationFrame(loop);
+  }
+  isoAnimId = requestAnimationFrame(loop);
+}
+function stopIsoLoop() {
+  if (isoAnimId) { cancelAnimationFrame(isoAnimId); isoAnimId = null; }
+}
+
+// =============================================
+//  QUEUE + FUNCTION RENDERING
+// =============================================
+function cmdLabel(cmd) {
+  var icons = {
+    left: '<svg style="width:14px;height:14px;vertical-align:-2px;display:inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-5"/></svg>',
+    forward: '<svg style="width:14px;height:14px;vertical-align:-2px;display:inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5,12 12,5 19,12"/></svg>',
+    right: '<svg style="width:14px;height:14px;vertical-align:-2px;display:inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-.49-5"/></svg>',
+    dock: '<svg style="width:14px;height:14px;vertical-align:-2px;display:inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="14" width="16" height="6" rx="2"/><line x1="12" y1="3" x2="12" y2="14"/><polyline points="8,10 12,14 16,10"/></svg>'
+  };
+  var names = {forward:'Fwd', left:'Left', right:'Right', dock:'Dock'};
+  return (icons[cmd] || '') + ' ' + (names[cmd] || cmd);
+}
+function cmdShort(cmd) {
+  return {forward:'\u2191', left:'\u21B6', right:'\u21B7', dock:'\u2ADF'}[cmd] || '?';
+}
+
+function renderFnDefs() {
+  // no-op: fn panels rendered by renderFnPanels
+}
+
+function renderQueue() {
+  const area = document.getElementById('queue-area');
+  area.innerHTML = '';
+  area.classList.remove('insert-end');
+  // Remove any stale container-level drag listeners from previous renders
+  if (area._dndCleanup) { area._dndCleanup(); }
+
+  // Always show queue items + blank insertion cell at the end
+  if (state.queue.length === 0) {
+    // empty — just show the insertion cell
+  }
+
+  let dragSrcIdx = null;
+  let placeholder = null;
+
+  function clearMarkers() {
+    if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+    area.classList.remove('insert-end');
+  }
+
+  function ensurePlaceholder() {
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'drop-placeholder';
+    }
+    return placeholder;
+  }
+
+  function markInsert(clientY) {
+    const ph = ensurePlaceholder();
+    const items = [...area.querySelectorAll('.queue-item:not(.dragging)')];
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) {
+        // Only move if not already in the right spot
+        if (ph.nextElementSibling !== item) {
+          area.insertBefore(ph, item);
+        }
+        return;
+      }
+    }
+    // Past all items — insert before the insertion cell (keep it at bottom)
+    var insertCell = area.querySelector('.insert-cell');
+    if (insertCell) {
+      if (ph.nextElementSibling !== insertCell) {
+        area.insertBefore(ph, insertCell);
+      }
+    } else if (ph.parentNode !== area || ph.nextElementSibling !== null) {
+      area.appendChild(ph);
+    }
+  }
+
+  state.queue.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.dataset.qidx = idx;
+    div.draggable = true;
+
+    const grip = '<span class="drag-grip">\u2630</span>';
+    if (item.type === 'call') {
+      div.className = 'queue-item fn-call-item';
+      var preview = (state.fnDefs[item.fn] || []).map(cmdShort).join('') || '\u2026';
+      div.innerHTML = grip + '<span style="flex:1"><b>' + fnDisplayName(item.fn) + '</b> <span class="queue-call-preview">' + preview + '</span></span><span class="del-btn">\u2715</span>';
+    } else {
+      div.className = 'queue-item';
+      div.innerHTML = `${grip}<span style="flex:1">${cmdLabel(item.cmd)}</span><span class="del-btn">\u2715</span>`;
+    }
+
+    div.querySelector('.del-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.queue.splice(idx, 1);
+      renderQueue();
+      updateStepCounter();
+    });
+
+    div.addEventListener('dragstart', (e) => {
+      if (state.running) { e.preventDefault(); return; }
+      dragSrcIdx = idx;
+      setTimeout(() => div.classList.add('dragging'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(idx));
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      clearMarkers();
+      dragSrcIdx = null;
+    });
+
+    area.appendChild(div);
+  });
+
+  // Blank insertion cell at end of program queue
+  var progInsert = document.createElement('div');
+  progInsert.className = 'insert-cell';
+  progInsert.textContent = '+ add command';
+  progInsert.addEventListener('click', function() { setTarget('program'); });
+  area.appendChild(progInsert);
+
+  // Container-level drag listeners (registered once per render, cleaned up on next render)
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    markInsert(e.clientY);
+  }
+  function onDragLeave(e) {
+    if (!area.contains(e.relatedTarget)) clearMarkers();
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    const src = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (isNaN(src)) { clearMarkers(); return; }
+
+    // Read destination from placeholder position among visible queue items only
+    let dst;
+    if (placeholder && placeholder.parentNode) {
+      const siblings = [...area.children].filter(el =>
+        !el.classList.contains('dragging') && !el.classList.contains('insert-cell')
+      );
+      dst = siblings.indexOf(placeholder);
+    } else {
+      clearMarkers();
+      return;
+    }
+    clearMarkers();
+
+    const moved = state.queue.splice(src, 1)[0];
+    state.queue.splice(dst, 0, moved);
+    renderQueue();
+    updateStepCounter();
+  }
+
+  area.addEventListener('dragover', onDragOver);
+  area.addEventListener('dragleave', onDragLeave);
+  area.addEventListener('drop', onDrop);
+  area._dndCleanup = () => {
+    area.removeEventListener('dragover', onDragOver);
+    area.removeEventListener('dragleave', onDragLeave);
+    area.removeEventListener('drop', onDrop);
+  };
+}
+
+function countUniqueCommands() {
+  // Every item in the program queue counts (cmd or call).
+  // Plus every command inside each function definition (counted once, not per call).
+  var count = state.queue.length;
+  var fnIds = Object.keys(state.fnDefs);
+  fnIds.forEach(function(fnId) {
+    count += state.fnDefs[fnId].length;
+  });
+  return count;
+}
+
+function updateStepCounter() {
+  const lvl = state.currentLevel;
+  if (!lvl) return;
+  var statsEl = document.getElementById('header-stats');
+  var cmds = countUniqueCommands();
+  var text = 'Runs: ' + state.attempts + '  \u2022  Commands: ' + cmds;
+  if (lvl.maxSteps) {
+    var total = countSteps(state.queue);
+    if (total > lvl.maxSteps) {
+      text += '  \u2022  Steps: ' + total + '/' + lvl.maxSteps + ' (over!)';
+      statsEl.className = 'step-counter over';
+    } else {
+      statsEl.className = 'step-counter';
+    }
+  } else {
+    statsEl.className = 'step-counter';
+  }
+  statsEl.textContent = text;
+}
+
+function countSteps(queue) {
+  return queue.reduce((sum, item) => {
+    if (item.type === 'call') return sum + Math.max((state.fnDefs[item.fn] || []).length, 1);
+    return sum + 1;
+  }, 0);
+}
+
+// =============================================
+//  DYNAMIC FUNCTIONS + COMMAND ROUTING
+// =============================================
+let cmdTarget = 'program';
+
+function fnDisplayName(fnId) {
+  var num = fnId.replace('f','');
+  return 'Fcn' + num;
+}
+
+function nextFnId() {
+  for (var i = 1; ; i++) {
+    if (!state.fnDefs.hasOwnProperty('f' + i)) return 'f' + i;
+  }
+}
+
+function setTarget(target) {
+  cmdTarget = target;
+  document.querySelectorAll('.list-panel').forEach(function(p) {
+    p.classList.toggle('list-panel-active', p.dataset.target === target);
+  });
+}
+
+function addFunction() {
+  var fnId = nextFnId();
+  state.fnDefs[fnId] = [];
+  renderFnPanels();
+  renderFnCallBtns();
+  setTarget(fnId);
+}
+
+function removeFunction(fnId) {
+  delete state.fnDefs[fnId];
+  state.queue = state.queue.filter(function(item) { return !(item.type === 'call' && item.fn === fnId); });
+  if (cmdTarget === fnId) setTarget('program');
+  renderFnPanels();
+  renderFnCallBtns();
+  renderQueue();
+  updateStepCounter();
+}
+
+function renderFnPanels() {
+  var area = document.getElementById('fn-panels-area');
+  area.innerHTML = '';
+  var fnIds = Object.keys(state.fnDefs);
+  fnIds.forEach(function(fnId) {
+    var panel = document.createElement('div');
+    panel.className = 'list-panel fn-panel' + (cmdTarget === fnId ? ' list-panel-active' : '');
+    panel.dataset.target = fnId;
+
+    var header = document.createElement('div');
+    header.className = 'list-header list-header-fn';
+    header.dataset.target = fnId;
+    var label = fnDisplayName(fnId);
+    header.innerHTML = '<span>' + label + '</span><button class="fn-remove-btn" data-fn="' + fnId + '">\u2715 Remove</button>';
+    header.addEventListener('click', function(e) {
+      if (e.target.classList.contains('fn-remove-btn')) return;
+      setTarget(fnId);
+    });
+    header.querySelector('.fn-remove-btn').addEventListener('click', function() { removeFunction(fnId); });
+    panel.appendChild(header);
+
+    panel.addEventListener('click', function(e) {
+      if (e.target.classList.contains('fn-remove-btn')) return;
+      setTarget(fnId);
+    });
+
+    var stepsArea = document.createElement('div');
+    stepsArea.className = 'fn-queue-area';
+    state.fnDefs[fnId].forEach(function(cmd, ci) {
+      var div = document.createElement('div');
+      div.className = 'queue-item';
+      div.dataset.fn = fnId;
+      div.dataset.fnidx = ci;
+      div.innerHTML = '<span style=\"flex:1\">' + cmdLabel(cmd) + '</span><span class=\"del-btn\">\u2715</span>';
+      div.querySelector('.del-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        state.fnDefs[fnId].splice(ci, 1);
+        renderFnPanels();
+        renderQueue();
+        updateStepCounter();
+      });
+      stepsArea.appendChild(div);
+    });
+    // Blank insertion cell
+    var insertCell = document.createElement('div');
+    insertCell.className = 'insert-cell fn-insert';
+    insertCell.textContent = '+ add command';
+    insertCell.addEventListener('click', function() { setTarget(fnId); });
+    stepsArea.appendChild(insertCell);
+    panel.appendChild(stepsArea);
+    area.appendChild(panel);
+  });
+}
+
+function updateSidebarWidth(fnCount) {
+  var sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  sidebar.style.width = (310 + fnCount * 30) + 'px';
+}
+
+function renderFnCallBtns() {
+  // Remove old fn-call buttons from cmd grid
+  var grid = document.getElementById('cmd-grid');
+  grid.querySelectorAll('.fn-call-btn').forEach(function(el) { el.remove(); });
+  var fnIds = Object.keys(state.fnDefs);
+  if (fnIds.length === 0) { grid.style.gridTemplateColumns = ''; updateSidebarWidth(0); return; }
+  // Recalculate grid columns: 3 base + fn count
+  grid.style.gridTemplateColumns = 'repeat(' + (3 + fnIds.length) + ', 1fr)';
+  updateSidebarWidth(fnIds.length);
+  fnIds.forEach(function(fnId) {
+    var btn = document.createElement('button');
+    btn.className = 'fn-call-btn';
+    btn.title = 'Insert ' + fnDisplayName(fnId) + ' call into program';
+    btn.innerHTML = '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/><path d="M7 7l5-5 5 5"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' + fnDisplayName(fnId);
+    btn.addEventListener('click', function() {
+      if (state.running) return;
+      if (cmdTarget !== 'program') setTarget('program');
+      state.queue.push({ type: 'call', fn: fnId });
+      renderQueue();
+      updateStepCounter();
+    });
+    grid.appendChild(btn);
+  });
+}
+
+document.getElementById('panel-program').addEventListener('click', function() {
+  setTarget('program');
+});
+
+document.getElementById('btn-add-fn').addEventListener('click', function() {
+  if (state.running) return;
+  addFunction();
+});
+
+document.querySelectorAll('.cmd-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    if (state.running) return;
+    if (cmdTarget === 'program') {
+      state.queue.push({ type: 'cmd', cmd: btn.dataset.cmd });
+      renderQueue();
+    } else {
+      if (!state.fnDefs[cmdTarget]) return;
+      state.fnDefs[cmdTarget].push(btn.dataset.cmd);
+      renderFnPanels();
+      renderQueue();
+    }
+    updateStepCounter();
+  });
+});
+
+// Clear
+document.getElementById('btn-clear').addEventListener('click', function() {
+  if (state.running) return;
+  state.queue = [];
+  state.fnDefs = {};
+  state.facing = state.currentLevel.startDir;
+  state.playerPos = [...state.currentLevel.player];
+  state.collectedSet = new Set();
+  state.collectAnims = [];
+  cmdTarget = 'program';
+  setTarget('program');
+  document.getElementById('fn-panels-area').innerHTML = '';
+  var cmdGrid2 = document.getElementById('cmd-grid');
+  cmdGrid2.querySelectorAll('.fn-call-btn').forEach(function(el) { el.remove(); });
+  cmdGrid2.style.gridTemplateColumns = '';
+  updateSidebarWidth(0);
+  renderGrid();
+  renderQueue();
+  updateStepCounter();
+});
+
+// Back to levels
+document.getElementById('back-to-levels').addEventListener('click', () => {
+  state.running = false;
+  stopIsoLoop();
+  showScreen('screen-levels');
+  renderLevelSelect();
+});
+
+// =============================================
+//  RUN PROGRAM
+// =============================================
+document.getElementById('btn-run').addEventListener('click', () => {
+  if (state.running) return;
+  const lvl = state.currentLevel;
+
+  if (lvl.maxSteps && countSteps(state.queue) > lvl.maxSteps) {
+    flashMsg(`Too many steps! Max is ${lvl.maxSteps}. Use functions! ??`);
+    return;
+  }
+  if (state.queue.length === 0) {
+    flashMsg('Add some commands first!');
+    return;
+  }
+
+  // Expand queue to flat move list (resolve function calls)
+  const moves = [];
+  state.queue.forEach(item => {
+    if (item.type === 'call') {
+      (state.fnDefs[item.fn] || []).forEach(cmd => moves.push(cmd));
+    } else {
+      moves.push(item.cmd);
+    }
+  });
+
+  if (moves.length === 0) {
+    flashMsg('Your function is empty — add moves to it first!');
+    return;
+  }
+
+  state.running = true;
+  state.attempts++;
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('lists-area').classList.add('running-mode');
+  updateStepCounter();
+
+  // Reset to start
+  state.playerPos = [...lvl.player];
+  state.facing = lvl.startDir;
+  state.collectedSet = new Set();
+  state.collectAnims = [];
+  state.robotAnim = { fromPos: null, toPos: null, t: 1, startMs: 0, durMs: 0 };
+  state.turnAnim  = { fromFacing: lvl.startDir, toFacing: lvl.startDir, t: 1, startMs: 0, durMs: 320 };
+  state.fallAnim  = { active: false, t: 0, startMs: 0, durMs: 900 };
+  startIsoLoop();
+  renderGrid();
+
+  // Delay first move by one frame so the reset render is visible
+  requestAnimationFrame(() => executeMove(moves, 0));
+});
+
+// Facing deltas: 0=N 1=E 2=S 3=W
+const FACING_DR = [-1, 0, 1, 0];
+const FACING_DC = [ 0, 1, 0,-1];
+
+function stopRunMode() {
+  state.running = false;
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('lists-area').classList.remove('running-mode');
+  document.querySelectorAll('.active-step').forEach(el => el.classList.remove('active-step'));
+  document.querySelectorAll('.active-fn-step').forEach(el => el.classList.remove('active-fn-step'));
+}
+
+function executeMove(moves, idx) {
+  if (idx >= moves.length) {
+    stopRunMode();
+    showCrash("Program ended without docking. Add a Dock command at the end!");
+    return;
+  }
+
+  const move = moves[idx];
+
+  // Dock command
+  if (move === 'dock') {
+    const [pr, pc] = state.playerPos;
+    const [gr, gc] = state.currentLevel.goal;
+    highlightStep(idx);
+    if (pr === gr && pc === gc) {
+      const lvl = state.currentLevel;
+      const allCollected = lvl.collectibles.every(([r,c]) => state.collectedSet.has(`${r},${c}`));
+      if (!allCollected && lvl.collectibles.length > 0) {
+        // Play dock-fail animation then show crash
+        state.dockFailAnim = { active: true, t: 0, startMs: 0, durMs: 600 };
+        playSound('crash');
+        setTimeout(() => {
+          state.dockFailAnim.active = false;
+          stopRunMode();
+          showCrash('Collect all power cells before docking!');
+        }, 650);
+      } else {
+        // Play dock animation then win
+        state.dockAnim = { active: true, t: 0, startMs: 0, durMs: 800 };
+        playSound('move');
+        setTimeout(() => {
+          state.dockAnim.active = false;
+          stopRunMode();
+          handleWin();
+        }, 850);
+      }
+    } else {
+      // Play dock-fail animation then show crash
+      state.dockFailAnim = { active: true, t: 0, startMs: 0, durMs: 600 };
+      playSound('crash');
+      setTimeout(() => {
+        state.dockFailAnim.active = false;
+        stopRunMode();
+        showCrash('Not at the docking station! Move to the dock first.');
+      }, 650);
+    }
+    return;
+  }
+
+  if (move === 'left') {
+    const prevFacing = state.facing;
+    state.facing = (state.facing + 3) % 4;
+    state.turnAnim = { fromFacing: prevFacing, toFacing: state.facing, t: 0, startMs: 0, durMs: 550 };
+    highlightStep(idx);
+    playSound('move');
+    setTimeout(() => executeMove(moves, idx + 1), 620);
+    return;
+  }
+  if (move === 'right') {
+    const prevFacing = state.facing;
+    state.facing = (state.facing + 1) % 4;
+    state.turnAnim = { fromFacing: prevFacing, toFacing: state.facing, t: 0, startMs: 0, durMs: 550 };
+    highlightStep(idx);
+    playSound('move');
+    setTimeout(() => executeMove(moves, idx + 1), 620);
+    return;
+  }
+
+  // forward
+  const [r, c] = state.playerPos;
+  const nr = r + FACING_DR[state.facing];
+  const nc = c + FACING_DC[state.facing];
+  const lvl = state.currentLevel;
+
+  if (nr < 0 || nr >= lvl.rows || nc < 0 || nc >= lvl.cols || lvl.grid[nr][nc] === -1) {
+    // Animate robot walking to edge then falling into the void
+    const WALK_MS = 500;
+    state.robotAnim.fromPos = [r, c];
+    state.robotAnim.toPos   = [nr, nc];
+    state.robotAnim.t       = 0;
+    state.robotAnim.startMs = 0;
+    state.robotAnim.durMs   = WALK_MS;
+    highlightStep(idx);
+    playSound('move');
+    // After walk reaches edge, start fall animation
+    setTimeout(() => {
+      state.fallAnim = { active: true, t: 0, startMs: 0, durMs: 900 };
+    }, WALK_MS);
+    // After fall completes, show crash
+    setTimeout(() => {
+      state.fallAnim.active = false;
+      stopRunMode();
+      showCrash("Robot flew off the grid! Check your turns.");
+    }, WALK_MS + 950);
+    return;
+  }
+  if (lvl.grid[nr][nc] === 1) {
+    stopRunMode();
+    highlightStep(idx);
+    setTimeout(() => showCrash(`Robot crashed into a wall! ?? Try a different path.`), 200);
+    return;
+  }
+
+  const WALK_MS = 500;
+  // Start walk animation before moving logical position
+  state.robotAnim.fromPos = [r, c];
+  state.robotAnim.toPos   = [nr, nc];
+  state.robotAnim.t       = 0;
+  state.robotAnim.startMs = 0;
+  state.robotAnim.durMs   = WALK_MS;
+
+  state.playerPos = [nr, nc];
+  const key = `${nr},${nc}`;
+  if (lvl.collectibles.some(([cr,cc]) => cr===nr && cc===nc) && !state.collectedSet.has(key)) {
+    // Delay collection until robot arrives, then play absorb animation
+    setTimeout(() => {
+      state.collectedSet.add(key);
+      state.collectAnims.push({ r: nr, c: nc, t: 0, startMs: 0, durMs: 350 });
+      playSound('collect');
+    }, WALK_MS - 80);
+  }
+
+  // Portal teleportation: if landing on a portal, animate suck-down then reveal
+  let portalDelay = 0;
+  if (lvl.portals) {
+    for (const pair of lvl.portals) {
+      const [a, b] = pair;
+      let dest = null;
+      if (nr === a[0] && nc === a[1]) dest = b;
+      else if (nr === b[0] && nc === b[1]) dest = a;
+      if (dest) {
+        const SUCK_MS = 350, REVEAL_MS = 350;
+        portalDelay = SUCK_MS + REVEAL_MS + 60;
+        // After walk completes, start suck-down
+        setTimeout(() => {
+          state.portalAnim = { active: true, phase: 'suck', t: 0, startMs: 0, durMs: SUCK_MS, fromPos: [nr, nc], toPos: [...dest] };
+          playSound('collect');
+        }, WALK_MS);
+        // After suck, move player and start reveal
+        setTimeout(() => {
+          state.playerPos = [...dest];
+          state.portalAnim = { active: true, phase: 'reveal', t: 0, startMs: 0, durMs: REVEAL_MS, fromPos: [nr, nc], toPos: [...dest] };
+        }, WALK_MS + SUCK_MS);
+        // After reveal, clear
+        setTimeout(() => {
+          state.portalAnim.active = false;
+        }, WALK_MS + SUCK_MS + REVEAL_MS);
+        break;
+      }
+    }
+  }
+
+  highlightStep(idx);
+  playSound('move');
+  // rAF loop handles rendering; wait for walk (+ portal anim) to finish before next step
+  setTimeout(() => executeMove(moves, idx + 1), WALK_MS + portalDelay + 40);
+}
+
+function highlightStep(idx) {
+  document.querySelectorAll('[data-qidx]').forEach(el => el.classList.remove('active-step'));
+  document.querySelectorAll('.active-fn-step').forEach(el => el.classList.remove('active-fn-step'));
+  // Map flat move index back to queue item (expanding calls)
+  let flat = 0;
+  for (let i = 0; i < state.queue.length; i++) {
+    const item = state.queue[i];
+    const steps = item.type === 'call' ? Math.max((state.fnDefs[item.fn] || []).length, 1) : 1;
+    if (flat + steps > idx) {
+      const el = document.querySelector(`[data-qidx="${i}"]`);
+      if (el) el.classList.add('active-step');
+      // If this is a function call, also highlight the sub-step within the fn panel
+      if (item.type === 'call') {
+        var subIdx = idx - flat;
+        var fnStepEl = document.querySelector(`[data-fn="${item.fn}"][data-fnidx="${subIdx}"]`);
+        if (fnStepEl) fnStepEl.classList.add('active-fn-step');
+      }
+      break;
+    }
+    flat += steps;
+  }
+}
+
+// =============================================
+//  WIN / CRASH
+// =============================================
+function handleWin() {
+  playSound('win');
+  const lvl = state.currentLevel;
+  const stepCount = countSteps(state.queue);
+
+  const prev = state.completedLevels[lvl.id] || 0;
+  state.completedLevels[lvl.id] = Math.max(prev, 1);
+
+  // Track per-level stats for teacher dashboard
+  const cmds = countUniqueCommands();
+  var ls = state.levelStats[lvl.id];
+  if (!ls) {
+    // First solve
+    state.levelStats[lvl.id] = { runsToFirstSolve: state.attempts, bestCommands: cmds, runsToBest: state.attempts, runs: state.attempts, commands: cmds };
+  } else {
+    // Subsequent solve: update best commands if improved
+    if (cmds < ls.bestCommands) {
+      ls.bestCommands = cmds;
+      ls.runsToBest = state.attempts;
+    }
+    ls.runs = state.attempts;
+    ls.commands = cmds;
+  }
+  sendProgress();
+
+  // Update header to show solved status
+  var updatedStats = state.levelStats[lvl.id];
+  document.getElementById('header-level').textContent = 'Level ' + lvl.id + ': ' + lvl.title + '  \u2714 Solved (best: ' + updatedStats.bestCommands + ' cmds in ' + updatedStats.runsToFirstSolve + ' runs)';
+
+  document.getElementById('win-emoji').textContent = '🤖';
+  document.getElementById('win-title').textContent = lvl.id === LEVELS.length ? 'All levels complete!' : 'Mission complete!';
+  spawnBurst('🎉');
+
+  const nextLvl = LEVELS.find(l => l.id === lvl.id + 1);
+
+  const runs = state.attempts;
+  let msg = `Completed in ${stepCount} step${stepCount !== 1 ? 's' : ''}`;
+  msg += ` · ${runs} run${runs !== 1 ? 's' : ''}`;
+  document.getElementById('win-msg').textContent = msg;
+
+  const nextBtn = document.getElementById('btn-next-level');
+  nextBtn.textContent = 'Next Level';
+  if (nextLvl && state.unlockedLevels[nextLvl.id]) {
+    nextBtn.style.display = '';
+    nextBtn.onclick = () => {
+      closeOverlay('overlay-win');
+      startLevel(nextLvl);
+    };
+  } else {
+    nextBtn.style.display = 'none';
+  }
+
+  openOverlay('overlay-win');
+}
+
+function showCrash(msg) {
+  playSound('crash');
+  document.getElementById('crash-msg').textContent = msg;
+  openOverlay('overlay-crash');
+}
+
+document.getElementById('btn-try-again').addEventListener('click', () => {
+  closeOverlay('overlay-crash');
+  state.playerPos    = [...state.currentLevel.player];
+  state.facing       = state.currentLevel.startDir;
+  state.collectedSet = new Set();
+  state.collectAnims = [];
+  state.robotAnim.t = 1;
+  state.robotAnim.fromPos = null;
+  state.robotAnim.toPos   = null;
+  state.turnAnim.t = 1;
+  state.turnAnim.fromFacing = state.facing;
+  state.turnAnim.toFacing = state.facing;
+  state.fallAnim.active = false;
+  state.fallAnim.t = 0;
+  state.dockAnim.active = false;
+  state.dockAnim.t = 0;
+  state.dockFailAnim.active = false;
+  state.dockFailAnim.t = 0;
+  state.portalAnim.active = false;
+  stopRunMode();
+  renderGrid();
+});
+
+document.getElementById('btn-retry-level').addEventListener('click', () => {
+  closeOverlay('overlay-win');
+  startLevel(state.currentLevel);
+});
+
+document.getElementById('btn-win-levels').addEventListener('click', () => {
+  closeOverlay('overlay-win');
+  showScreen('screen-levels');
+  renderLevelSelect();
+});
+
+function openOverlay(id)  { document.getElementById(id).classList.add('active'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('active'); }
+
+function showLocked() {
+  const banner = document.getElementById('locked-banner');
+  banner.classList.add('active');
+  setTimeout(() => banner.classList.remove('active'), 3500);
+}
+
+function flashMsg(msg) {
+  const banner = document.getElementById('locked-banner');
+  banner.textContent = msg;
+  banner.classList.add('active');
+  setTimeout(() => { banner.classList.remove('active'); banner.textContent = '🎉 Nice work! Wait for your teacher to unlock the next levels.'; }, 3000);
+}
+
+// =============================================
+//  SOUND EFFECTS (Web Audio API)
+// =============================================
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, dur, type='sine', vol=0.3) {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch {}
+}
+let isMuted = false;
+function playSound(type) {
+  if (isMuted) return;
+  if (type === 'move')    { playTone(440, 0.08, 'square', 0.15); }
+  if (type === 'collect') { playTone(880, 0.12, 'sine', 0.25); setTimeout(() => playTone(1100, 0.12, 'sine', 0.2), 80); }
+  if (type === 'crash')   { playTone(200, 0.3, 'sawtooth', 0.3); setTimeout(() => playTone(150, 0.3, 'sawtooth', 0.25), 150); }
+  if (type === 'win')     {
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'sine', 0.35), i * 120));
+  }
+}
+
+// =============================================
+//  RESIZE
+// =============================================
+window.addEventListener('resize', () => {
+  if (state.currentLevel && document.getElementById('screen-game').classList.contains('active')) {
+    renderGrid();
+  }
+});
+
+// =============================================
+//  INIT
+// =============================================
+document.getElementById('btn-mute').addEventListener('click', function() {
+  isMuted = !isMuted;
+  this.classList.toggle('muted', isMuted);
+  document.getElementById('icon-sound').style.display = isMuted ? 'none' : '';
+  document.getElementById('icon-muted').style.display = isMuted ? '' : 'none';
+});
+
+connectWS();
+</script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Explorer — Teacher Dashboard</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --accent: #6366f1; --accent2: #a5b4fc; --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --text: #e2e8f0; --muted: #94a3b8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--accent2); }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .section { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+
+  /* Level row layout */
+  .level-row { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .level-chip {
+    width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; user-select: none; flex-shrink: 0;
+  }
+  .level-chip.unlocked { background: rgba(74,222,128,0.2); color: var(--green); border-color: rgba(74,222,128,0.5); }
+  .level-chip.locked { background: rgba(248,113,113,0.15); color: var(--red); border-color: rgba(248,113,113,0.3); opacity: 0.7; }
+  .level-chip:hover { transform: scale(1.1); }
+
+  /* Challenge group box */
+  .challenge-group {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .challenge-group-chips {
+    display: flex; gap: 6px; padding: 6px 8px;
+    border: 2px dashed rgba(251,191,36,0.35); border-radius: 10px;
+    background: rgba(251,191,36,0.04); position: relative;
+  }
+  .challenge-group-chips.all-unlocked { border-color: rgba(251,191,36,0.6); background: rgba(251,191,36,0.08); }
+  .challenge-group-chips.active { border-color: var(--yellow); border-style: solid; background: rgba(251,191,36,0.12); box-shadow: 0 0 12px rgba(251,191,36,0.15); }
+  .challenge-group-label {
+    font-size: 0.68rem; font-weight: 700; color: var(--yellow); text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 8px; padding: 0 4px;
+  }
+  .challenge-group-label .ch-toggle {
+    font-size: 0.68rem; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(251,191,36,0.3);
+    background: rgba(251,191,36,0.1); color: var(--yellow); cursor: pointer; font-weight: 600; transition: all 0.15s;
+  }
+  .challenge-group-label .ch-toggle:hover { background: rgba(251,191,36,0.25); }
+  .ch-btn {
+    font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; transition: all 0.15s;
+  }
+  .ch-btn-start { background: rgba(251,191,36,0.2); color: var(--yellow); }
+  .ch-btn-start:hover { background: rgba(251,191,36,0.35); }
+  .ch-btn-stop { background: rgba(248,113,113,0.2); color: var(--red); }
+  .ch-btn-stop:hover { background: rgba(248,113,113,0.35); }
+
+  /* Separator between groups */
+  .level-sep { width: 2px; height: 42px; background: rgba(255,255,255,0.08); border-radius: 1px; flex-shrink: 0; align-self: center; }
+
+  .level-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .btn {
+    padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.15s;
+  }
+  .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+  .btn-green { background: rgba(74,222,128,0.2); color: var(--green); border: 1px solid rgba(74,222,128,0.4); }
+  .btn-green:hover { background: rgba(74,222,128,0.35); }
+  .btn-red { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .btn-red:hover { background: rgba(248,113,113,0.3); }
+  .btn-outline { background: transparent; color: var(--muted); border: 1px solid rgba(148,163,184,0.3); }
+  .btn-outline:hover { color: var(--text); border-color: rgba(148,163,184,0.6); }
+
+  /* Teams table */
+  .teams-wrap { overflow-x: auto; }
+  .teams-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .teams-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .teams-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .teams-table tr:hover td { background: rgba(99,102,241,0.06); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .conn-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .conn-dot.offline { background: var(--muted); opacity: 0.4; }
+  .progress-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; min-width: 80px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+  .level-dots { display: flex; gap: 2px; flex-wrap: wrap; }
+  .level-dot { width: 14px; height: 14px; border-radius: 3px; font-size: 0.55rem; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .level-dot.done { background: rgba(74,222,128,0.3); color: var(--green); }
+  .level-dot.current { background: rgba(99,102,241,0.3); color: var(--accent2); box-shadow: 0 0 0 1px var(--accent); }
+  .level-dot.not-done { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.2); }
+  .stat-good { color: var(--green); }
+  .stat-warn { color: var(--yellow); }
+  .stat-bad { color: var(--red); }
+  .no-teams { color: var(--muted); font-style: italic; padding: 20px; text-align: center; }
+  .header-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .header-row h1 { margin-bottom: 0; }
+  .auto-badge { font-size: 0.7rem; background: rgba(99,102,241,0.2); color: var(--accent2); padding: 2px 8px; border-radius: 10px; }
+  .leaderboard-section { margin-top: 16px; }
+  .leaderboard-section h2 { font-size: 0.95rem; }
+
+  .lb-formula { font-size: 0.7rem; color: var(--muted); margin: 4px 0 8px 0; }
+  .lb-table th.lb-col-header { text-align: center; font-size: 0.7rem; padding: 6px 4px; }
+  .lb-cell { text-align: center; font-family: 'Courier New', monospace; font-size: 0.75rem; padding: 4px 6px; border-radius: 4px; }
+  .lb-cell-unsolved { background: rgba(100,116,139,0.08); color: var(--muted); opacity: 0.35; font-size: 0.7rem; }
+  .lb-cell-solved { color: var(--text); }
+  .lb-cell-winner { background: rgba(74,222,128,0.35) !important; outline: 2px solid #4ade80; outline-offset: -2px; box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+  .lb-cell-winner .lb-cell-cmds { color: #4ade80; font-weight: 700; text-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .lb-star { color: #fbbf24; font-size: 0.8rem; filter: drop-shadow(0 0 3px rgba(251,191,36,0.6)); }
+  .lb-cell-runs { opacity: 0.5; font-size: 0.65rem; }
+  .lb-total { font-family: 'Courier New', monospace; font-size: 0.78rem; text-align: center; font-weight: 600; }
+  .team-admin-cell { white-space: nowrap; }
+  .btn-admin { font-size: 0.65rem; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; margin-left: 2px; }
+  .btn-reset-team { color: var(--yellow); border-color: var(--yellow); }
+  .btn-reset-team:hover { background: rgba(251,191,36,0.15); }
+  .btn-delete-team { color: var(--red); border-color: var(--red); }
+  .btn-delete-team:hover { background: rgba(239,68,68,0.15); }
+</style>
+</head>
+<body>
+
+<div class="header-row">
+  <h1>Teacher Dashboard</h1>
+  <span class="auto-badge" id="status-badge">Loading...</span>
+</div>
+<p class="subtitle">Manage levels, monitor teams, and run challenges. Auto-refreshes every 3s.</p>
+
+<!-- LEVEL CONTROLS -->
+<div class="section">
+  <h2>Level Controls</h2>
+  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;">Click individual levels to toggle. Challenge sets toggle as a group.</p>
+  <div id="level-grid"></div>
+  <div class="level-actions">
+    <button class="btn btn-green" onclick="unlockRange(1,21)">Unlock All</button>
+    <button class="btn btn-red" onclick="lockRange(4,21)">Lock 4-21</button>
+    <button class="btn btn-green" onclick="unlockRange(1,9)">Unlock 1-9</button>
+    <button class="btn btn-green" onclick="unlockRange(1,11)">Unlock 1-11</button>
+    <button class="btn btn-outline" onclick="resetAll()">Reset Everything</button>
+  </div>
+</div>
+
+<!-- TEAMS TABLE -->
+<div class="section">
+  <h2>Team Progress</h2>
+  <div id="teams-area">
+    <div class="no-teams">No teams connected yet.</div>
+  </div>
+</div>
+
+<script>
+var API = '';
+var cachedState = null;
+
+// Challenge set definitions (must match server)
+var CHALLENGE_SETS_DEF = [
+  { id: 1, name: 'Challenge 1', levels: [4, 5] },
+  { id: 2, name: 'Challenge 2', levels: [7, 8, 9] },
+  { id: 3, name: 'Challenge 3', levels: [12,13,14,15,16,17,18,19,20,21] },
+];
+var challengeLevelMap = {}; // levelId -> challengeSetId
+CHALLENGE_SETS_DEF.forEach(function(cs) {
+  cs.levels.forEach(function(id) { challengeLevelMap[id] = cs.id; });
+});
+
+async function fetchState() {
+  try {
+    var res = await fetch(API + '/api/state');
+    cachedState = await res.json();
+    document.getElementById('status-badge').textContent = 'Connected';
+    document.getElementById('status-badge').style.background = 'rgba(74,222,128,0.2)';
+    document.getElementById('status-badge').style.color = '#4ade80';
+    render();
+  } catch (e) {
+    document.getElementById('status-badge').textContent = 'Offline';
+    document.getElementById('status-badge').style.background = 'rgba(248,113,113,0.2)';
+    document.getElementById('status-badge').style.color = '#f87171';
+  }
+}
+
+function render() {
+  if (!cachedState) return;
+  renderLevels();
+  renderTeams();
+}
+
+// ---- LEVEL GRID ----
+function renderLevels() {
+  var container = document.getElementById('level-grid');
+  container.innerHTML = '';
+  var ul = cachedState.unlockedLevels || {};
+  var csData = {};
+  (cachedState.challengeSets || []).forEach(function(cs) { csData[cs.id] = cs; });
+
+  // Build segments: individual levels or challenge groups
+  // Levels 1-3, [Challenge 1: 4-5], 6, [Challenge 2: 7-9], 10-11, [Challenge 3: 12-21]
+  var segments = [];
+  var i = 1;
+  while (i <= 21) {
+    if (challengeLevelMap[i]) {
+      var csId = challengeLevelMap[i];
+      var csDef = CHALLENGE_SETS_DEF.find(function(c) { return c.id === csId; });
+      segments.push({ type: 'challenge', cs: csDef, csId: csId });
+      i = csDef.levels[csDef.levels.length - 1] + 1;
+    } else {
+      segments.push({ type: 'level', id: i });
+      i++;
+    }
+  }
+
+  var row = document.createElement('div');
+  row.className = 'level-row';
+
+  segments.forEach(function(seg, si) {
+    if (si > 0 && seg.type === 'challenge') {
+      var sep = document.createElement('div');
+      sep.className = 'level-sep';
+      row.appendChild(sep);
+    }
+    if (si > 0 && segments[si - 1].type === 'challenge' && seg.type === 'level') {
+      var sep2 = document.createElement('div');
+      sep2.className = 'level-sep';
+      row.appendChild(sep2);
+    }
+
+    if (seg.type === 'level') {
+      var chip = makeChip(seg.id, ul[seg.id], false);
+      chip.onclick = function() { toggleLevel(seg.id, ul[seg.id]); };
+      row.appendChild(chip);
+    } else {
+      var cs = csData[seg.csId] || {};
+      var group = document.createElement('div');
+      group.className = 'challenge-group';
+
+      var chipsWrap = document.createElement('div');
+      var allUnlocked = seg.cs.levels.every(function(id) { return ul[id]; });
+      var anyUnlocked = seg.cs.levels.some(function(id) { return ul[id]; });
+      chipsWrap.className = 'challenge-group-chips' + (cs.active ? ' active' : allUnlocked ? ' all-unlocked' : '');
+
+      seg.cs.levels.forEach(function(id) {
+        var chip = makeChip(id, ul[id], true);
+        chip.onclick = function() { toggleChallengeGroup(seg.csId, allUnlocked); };
+        chipsWrap.appendChild(chip);
+      });
+      group.appendChild(chipsWrap);
+
+      // Label row
+      var label = document.createElement('div');
+      label.className = 'challenge-group-label';
+      var nameSpan = document.createElement('span');
+      nameSpan.textContent = cs.name || seg.cs.name;
+      label.appendChild(nameSpan);
+
+      group.appendChild(label);
+      row.appendChild(group);
+    }
+  });
+
+  container.appendChild(row);
+}
+
+function makeChip(id, unlocked, inChallenge) {
+  var chip = document.createElement('div');
+  chip.className = 'level-chip ' + (unlocked ? 'unlocked' : 'locked');
+  chip.textContent = id;
+  chip.title = 'Level ' + id + (unlocked ? ' (unlocked)' : ' (locked)') + (inChallenge ? ' — click to toggle group' : ' — click to toggle');
+  return chip;
+}
+
+// ---- API CALLS ----
+async function toggleLevel(level, currentlyUnlocked) {
+  await fetch(API + '/api/levels/lock', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level: level, locked: currentlyUnlocked })
+  });
+  fetchState();
+}
+
+async function toggleChallengeGroup(csId, allUnlocked) {
+  await fetch(API + '/api/challenge/toggle-lock', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: csId, unlock: !allUnlocked })
+  });
+  fetchState();
+}
+
+async function unlockRange(from, to) {
+  await fetch(API + '/api/levels/unlock-range', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: from, to: to })
+  });
+  fetchState();
+}
+
+async function lockRange(from, to) {
+  await fetch(API + '/api/levels/lock-range', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: from, to: to })
+  });
+  fetchState();
+}
+
+async function resetAll() {
+  if (!confirm('Reset all teams and level locks?')) return;
+  await fetch(API + '/api/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  fetchState();
+}
+
+// ---- TEAMS TABLE ----
+function renderTeams() {
+  var area = document.getElementById('teams-area');
+  var teams = cachedState.teams || {};
+  var names = Object.keys(teams);
+
+  if (names.length === 0) {
+    area.innerHTML = '<div class="no-teams">No teams connected yet.</div>';
+    return;
+  }
+
+  names.sort(function(a, b) {
+    var ta = teams[a], tb = teams[b];
+    if (ta.connected !== tb.connected) return ta.connected ? -1 : 1;
+    return (tb.completedLevels || []).length - (ta.completedLevels || []).length;
+  });
+
+  var html = '<div class="teams-wrap"><table class="teams-table">' +
+    '<tr>' +
+      '<th>Team</th>' +
+      '<th>Current</th>' +
+      '<th>Completed</th>' +
+      '<th>Progress</th>' +
+      '<th>Levels</th>' +
+      '<th>Runs to 1st Solve</th>' +
+      '<th>Avg Runs/Lvl</th>' +
+      '<th>Last Seen</th>' +
+      '<th>Admin</th>' +
+    '</tr>';
+
+  names.forEach(function(name) {
+    var t = teams[name];
+    var completed = (t.completedLevels || []).length;
+    var pct = Math.round((completed / 21) * 100);
+    var totalRunsToSolve = 0;
+    Object.values(t.levelStats || {}).forEach(function(v) {
+      totalRunsToSolve += v.runsToFirstSolve || v.runs || 0;
+    });
+    var avgRuns = completed > 0 ? (totalRunsToSolve / completed).toFixed(1) : '-';
+    var avgClass = completed === 0 ? '' : parseFloat(avgRuns) <= 2 ? 'stat-good' : parseFloat(avgRuns) <= 5 ? 'stat-warn' : 'stat-bad';
+    var ago = timeAgo(t.lastSeen);
+    var connClass = t.connected ? 'online' : 'offline';
+
+    var dots = '';
+    for (var i = 1; i <= 21; i++) {
+      var done = (t.completedLevels || []).indexOf(i) !== -1;
+      var current = t.currentLevel === i;
+      var cls = done ? 'done' : current ? 'current' : 'not-done';
+      dots += '<span class="level-dot ' + cls + '" title="Level ' + i + '">' + i + '</span>';
+    }
+
+    html += '<tr>' +
+      '<td><span class="conn-dot ' + connClass + '"></span>' + esc(name) + '</td>' +
+      '<td>' + (t.currentLevel || '-') + '</td>' +
+      '<td>' + completed + ' / 21</td>' +
+      '<td><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div></td>' +
+      '<td><div class="level-dots">' + dots + '</div></td>' +
+      '<td>' + totalRunsToSolve + '</td>' +
+      '<td class="' + avgClass + '">' + avgRuns + '</td>' +
+      '<td style="color:var(--muted);font-size:0.75rem">' + ago + '</td>' +
+      '<td class="team-admin-cell">' +
+        '<button class="btn-admin btn-reset-team" onclick="resetTeam(\'' + esc(name).replace(/'/g, "\\'") + '\')">Reset</button>' +
+        '<button class="btn-admin btn-delete-team" onclick="deleteTeam(\'' + esc(name).replace(/'/g, "\\'") + '\')">Delete</button>' +
+      '</td>' +
+    '</tr>';
+  });
+
+  html += '</table></div>';
+
+  // Challenge leaderboards
+  (cachedState.challengeSets || []).forEach(function(cs) {
+    if (!cs.active && !hasAnyChallengeStats(names, teams, cs)) return;
+    html += renderChallengeLeaderboard(cs, names, teams);
+  });
+
+  area.innerHTML = html;
+}
+
+function hasAnyChallengeStats(names, teams, cs) {
+  return names.some(function(name) {
+    var t = teams[name];
+    return cs.levels.some(function(id) { return t.levelStats && t.levelStats[id]; });
+  });
+}
+
+function renderChallengeLeaderboard(cs, names, teams) {
+  // Build per-team, per-level data
+  var teamData = names.map(function(name) {
+    var t = teams[name];
+    var perLevel = {};
+    var completed = 0;
+    var totalCmds = 0;
+    var totalRuns = 0;
+    cs.levels.forEach(function(id) {
+      var solved = (t.completedLevels || []).indexOf(id) !== -1;
+      var s = (t.levelStats || {})[id];
+      if (solved && s) {
+        var cmds = s.bestCommands || s.commands || 0;
+        var runs = s.runsToBest || s.runsToFirstSolve || s.runs || 0;
+        perLevel[id] = { cmds: cmds, runs: runs, solved: true };
+        completed++;
+        totalCmds += cmds;
+        totalRuns += runs;
+      } else {
+        perLevel[id] = { cmds: 0, runs: 0, solved: false };
+      }
+    });
+    return { name: name, completed: completed, totalCmds: totalCmds, totalRuns: totalRuns, perLevel: perLevel, total: cs.levels.length, connected: teams[name].connected };
+  }).filter(function(r) { return r.completed > 0 || r.connected; });
+
+  if (teamData.length === 0) return '';
+
+  // Count how many teams solved each level (for rarity scoring)
+  var solversPerLevel = {};
+  cs.levels.forEach(function(id) {
+    var count = 0;
+    teamData.forEach(function(td) { if (td.perLevel[id].solved) count++; });
+    solversPerLevel[id] = count;
+  });
+  var totalParticipants = teamData.length;
+
+  // Compute difficulty score: for each solved puzzle, earn points = teams that DIDN'T solve it
+  // Harder puzzles (fewer solvers) earn more points
+  teamData.forEach(function(td) {
+    var diff = 0;
+    cs.levels.forEach(function(id) {
+      if (td.perLevel[id].solved) {
+        diff += (totalParticipants - solversPerLevel[id]);
+      }
+    });
+    td.diffScore = diff;
+  });
+
+  // Sort: most solved → highest difficulty score → fewest commands → fewest runs
+  teamData.sort(function(a, b) {
+    return b.completed - a.completed || b.diffScore - a.diffScore || a.totalCmds - b.totalCmds || a.totalRuns - b.totalRuns;
+  });
+
+  // Find per-level winner: fewest cmds, then fewest runs as tiebreaker
+  var winnerPerLevel = {};
+  cs.levels.forEach(function(id) {
+    var bestCmds = Infinity, bestRuns = Infinity;
+    var solverCount = 0;
+    teamData.forEach(function(td) {
+      if (!td.perLevel[id].solved) return;
+      solverCount++;
+      var c = td.perLevel[id].cmds, r = td.perLevel[id].runs;
+      if (c < bestCmds || (c === bestCmds && r < bestRuns)) { bestCmds = c; bestRuns = r; }
+    });
+    winnerPerLevel[id] = solverCount > 0 ? { cmds: bestCmds, runs: bestRuns } : null;
+  });
+
+  var html = '<div class="leaderboard-section">' +
+    '<h2>' + esc(cs.name) + ' Leaderboard ' + (cs.active ? '<span style="color:var(--yellow)">Active</span>' : '<span style="color:var(--muted)">Ended</span>') + '</h2>' +
+    '<p class="lb-formula">Rank: most solved &rarr; hardest puzzles &rarr; fewest commands &rarr; fewest runs</p>' +
+    '<table class="teams-table lb-table"><tr><th>#</th><th>Team</th><th>Solved</th>';
+  cs.levels.forEach(function(id) {
+    html += '<th class="lb-col-header">Lv ' + id + '</th>';
+  });
+  html += '<th>Cmds</th><th>Runs</th></tr>';
+
+  teamData.forEach(function(td, i) {
+    var medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : (i + 1);
+    html += '<tr>' +
+      '<td>' + medal + '</td>' +
+      '<td>' + esc(td.name) + '</td>' +
+      '<td>' + td.completed + '/' + td.total + '</td>';
+
+    cs.levels.forEach(function(id) {
+      var pl = td.perLevel[id];
+      if (!pl.solved) {
+        html += '<td class="lb-cell lb-cell-unsolved">&mdash;</td>';
+      } else {
+        var w = winnerPerLevel[id];
+        var isWinner = w && pl.cmds === w.cmds && pl.runs === w.runs;
+        html += '<td class="lb-cell lb-cell-solved' + (isWinner ? ' lb-cell-winner' : '') + '">' +
+          '<span class="lb-cell-runs">' + pl.runs + '</span> / <span class="lb-cell-cmds">' + pl.cmds + '</span>' +
+          (isWinner ? ' <span class="lb-star">&#9733;</span>' : '') + '</td>';
+      }
+    });
+
+    html += '<td class="lb-total">' + td.totalCmds + '</td>' +
+      '<td class="lb-total">' + td.totalRuns + '</td></tr>';
+  });
+
+  html += '</table></div>';
+  return html;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '-';
+  var sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 10) return 'now';
+  if (sec < 60) return sec + 's ago';
+  if (sec < 3600) return Math.floor(sec/60) + 'm ago';
+  return Math.floor(sec/3600) + 'h ago';
+}
+
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function resetTeam(name) {
+  if (!confirm('Reset all progress for team "' + name + '"? This cannot be undone.')) return;
+  fetch('/api/team/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) })
+    .then(function() { fetchState(); });
+}
+
+function deleteTeam(name) {
+  if (!confirm('Delete team "' + name + '" entirely? This cannot be undone.')) return;
+  fetch('/api/team/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) })
+    .then(function() { fetchState(); });
+}
+
+// ---- INIT ----
+fetchState();
+setInterval(fetchState, 3000);
+</script>
+</body>
+</html>
