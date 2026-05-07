@@ -16,11 +16,31 @@
   }
   .page-subtitle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 32px; }
 
-  .section { background: var(--card); border-radius: 14px; padding: 24px 28px; margin-bottom: 24px; }
+  .section { background: var(--card); border-radius: 14px; margin-bottom: 24px; overflow: hidden; }
 
-  .leaderboard-section h2 { font-size: 1.2rem; margin-bottom: 2px; }
-  .lb-status { font-size: 0.85rem; font-weight: 700; }
-  .lb-formula { font-size: 0.75rem; color: var(--muted); margin: 4px 0 12px 0; }
+  .lb-header {
+    padding: 20px 28px; cursor: pointer; display: flex; align-items: center; gap: 12px;
+    user-select: none; transition: background 0.15s;
+  }
+  .lb-header:hover { background: rgba(99,102,241,0.06); }
+  .lb-arrow { font-size: 0.9rem; color: var(--muted); transition: transform 0.25s; display: inline-block; }
+  .lb-arrow.open { transform: rotate(90deg); }
+  .leaderboard-section h2 { font-size: 1.2rem; margin: 0; flex: 1; }
+  .lb-preview { font-size: 0.8rem; color: var(--muted); }
+  .lb-body { padding: 0 28px 24px 28px; }
+  .lb-body.collapsed { display: none; }
+  .lb-formula { font-size: 0.75rem; color: var(--muted); margin: 0 0 12px 0; }
+
+  /* Overall winner section */
+  .overall-section { background: var(--card); border-radius: 14px; padding: 28px; margin-bottom: 24px; text-align: center; }
+  .overall-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 16px; color: var(--accent2); }
+  .overall-winner { font-size: 1.6rem; font-weight: 900; margin: 8px 0; }
+  .overall-stats { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  .overall-table { margin: 0 auto; border-collapse: collapse; font-size: 1rem; }
+  .overall-table td { padding: 8px 16px; }
+  .overall-medal { font-size: 1.5rem; }
+  .overall-name { font-weight: 700; font-size: 1.1rem; }
+  .overall-score { font-family: 'Courier New', monospace; color: var(--muted); font-size: 0.9rem; }
 
   .lb-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .lb-table th { text-align: left; padding: 10px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
@@ -58,6 +78,8 @@
 <div class="page-title">&#127942; Leaderboard</div>
 <div class="page-subtitle">Robot Coder &mdash; Live standings</div>
 
+<div id="overall-area"></div>
+
 <div id="boards-area">
   <div class="no-data">Waiting for challenge data&hellip;</div>
 </div>
@@ -65,6 +87,15 @@
 <script>
 var API = '';
 var cachedState = null;
+var expandedSets = {}; // track which challenge IDs are expanded
+
+function toggleChallenge(id) {
+  expandedSets[id] = !expandedSets[id];
+  var body = document.getElementById('lb-body-' + id);
+  var arrow = document.getElementById('lb-arrow-' + id);
+  if (body) body.classList.toggle('collapsed', !expandedSets[id]);
+  if (arrow) arrow.classList.toggle('open', expandedSets[id]);
+}
 
 async function fetchState() {
   try {
@@ -74,32 +105,7 @@ async function fetchState() {
   } catch (e) {}
 }
 
-function render() {
-  if (!cachedState) return;
-  var area = document.getElementById('boards-area');
-  var teams = cachedState.teams || {};
-  var names = Object.keys(teams);
-  var html = '';
-
-  (cachedState.challengeSets || []).forEach(function(cs) {
-    if (!cs.active && !hasAnyChallengeStats(names, teams, cs)) return;
-    html += renderChallengeLeaderboard(cs, names, teams);
-  });
-
-  if (!html) {
-    html = '<div class="no-data">No active challenges yet.</div>';
-  }
-  area.innerHTML = html;
-}
-
-function hasAnyChallengeStats(names, teams, cs) {
-  return names.some(function(name) {
-    var t = teams[name];
-    return cs.levels.some(function(id) { return t.levelStats && t.levelStats[id]; });
-  });
-}
-
-function renderChallengeLeaderboard(cs, names, teams) {
+function getRankedTeamData(cs, names, teams) {
   var teamData = names.map(function(name) {
     var t = teams[name];
     var perLevel = {};
@@ -121,9 +127,9 @@ function renderChallengeLeaderboard(cs, names, teams) {
       }
     });
     return { name: name, completed: completed, totalCmds: totalCmds, totalRuns: totalRuns, perLevel: perLevel, total: cs.levels.length, connected: teams[name].connected };
-  }).filter(function(r) { return r.completed > 0 || r.connected; });
+  }).filter(function(r) { return r.completed > 0; });
 
-  if (teamData.length === 0) return '';
+  if (teamData.length === 0) return [];
 
   var solversPerLevel = {};
   cs.levels.forEach(function(id) {
@@ -147,54 +153,166 @@ function renderChallengeLeaderboard(cs, names, teams) {
     return b.completed - a.completed || b.diffScore - a.diffScore || a.totalCmds - b.totalCmds || a.totalRuns - b.totalRuns;
   });
 
-  var winnerPerLevel = {};
-  cs.levels.forEach(function(id) {
-    var bestCmds = Infinity, bestRuns = Infinity;
-    var solverCount = 0;
-    teamData.forEach(function(td) {
-      if (!td.perLevel[id].solved) return;
-      solverCount++;
-      var c = td.perLevel[id].cmds, r = td.perLevel[id].runs;
-      if (c < bestCmds || (c === bestCmds && r < bestRuns)) { bestCmds = c; bestRuns = r; }
+  return teamData;
+}
+
+function getTop3WithTies(teamData) {
+  if (teamData.length === 0) return [];
+  var cutoff = [];
+  var rank = 0;
+  var prevKey = null;
+  for (var i = 0; i < teamData.length; i++) {
+    var td = teamData[i];
+    var key = td.completed + '|' + td.diffScore + '|' + td.totalCmds + '|' + td.totalRuns;
+    if (key !== prevKey) {
+      rank++;
+      prevKey = key;
+    }
+    if (rank > 3) break;
+    td.rank = rank;
+    cutoff.push(td);
+  }
+  return cutoff;
+}
+
+function render() {
+  if (!cachedState) return;
+  var area = document.getElementById('boards-area');
+  var overallArea = document.getElementById('overall-area');
+  var teams = cachedState.teams || {};
+  var names = Object.keys(teams);
+  var html = '';
+
+  var challengeSets = cachedState.challengeSets || [];
+
+  // Overall winner computation
+  var overallScores = {};
+  challengeSets.forEach(function(cs) {
+    var ranked = getRankedTeamData(cs, names, teams);
+    var top3 = getTop3WithTies(ranked);
+    top3.forEach(function(td) {
+      if (!overallScores[td.name]) overallScores[td.name] = 0;
+      if (td.rank === 1) overallScores[td.name] += 3;
+      else if (td.rank === 2) overallScores[td.name] += 2;
+      else if (td.rank === 3) overallScores[td.name] += 1;
     });
-    winnerPerLevel[id] = solverCount > 0 ? { cmds: bestCmds, runs: bestRuns } : null;
   });
+
+  var overallRanked = Object.keys(overallScores).map(function(name) {
+    return { name: name, score: overallScores[name] };
+  }).filter(function(r) { return r.score > 0; });
+  overallRanked.sort(function(a, b) { return b.score - a.score; });
+  var overallTop3 = [];
+  var oRank = 0, oPrev = null;
+  for (var oi = 0; oi < overallRanked.length; oi++) {
+    if (overallRanked[oi].score !== oPrev) { oRank++; oPrev = overallRanked[oi].score; }
+    if (oRank > 3) break;
+    overallRanked[oi].rank = oRank;
+    overallTop3.push(overallRanked[oi]);
+  }
+
+  var overallHtml = '<div class="overall-section"><div class="overall-title">&#127942; Overall Champion</div>';
+  if (overallTop3.length === 0) {
+    overallHtml += '<div style="color:var(--muted);font-style:italic;">No scores yet</div>';
+  } else {
+    overallHtml += '<table class="overall-table">';
+    var medals = ['', '&#129351;', '&#129352;', '&#129353;'];
+    overallTop3.forEach(function(r) {
+      overallHtml += '<tr><td class="overall-medal">' + (medals[r.rank] || '') + '</td>' +
+        '<td class="overall-name">' + esc(r.name) + '</td>' +
+        '<td class="overall-score">' + r.score + ' pts</td></tr>';
+    });
+    overallHtml += '</table>';
+    overallHtml += '<div class="overall-stats" style="margin-top:12px;">Points: 3 per challenge win, 2 for 2nd, 1 for 3rd</div>';
+  }
+  overallHtml += '</div>';
+  overallArea.innerHTML = overallHtml;
+
+  // Render each challenge (always show all)
+  challengeSets.forEach(function(cs) {
+    html += renderChallengeLeaderboard(cs, names, teams);
+  });
+
+  if (!html) {
+    html = '<div class="no-data">No challenges configured.</div>';
+  }
+  area.innerHTML = html;
+}
+
+function renderChallengeLeaderboard(cs, names, teams) {
+  var teamData = getRankedTeamData(cs, names, teams);
+  var top3 = getTop3WithTies(teamData);
+  var isExpanded = !!expandedSets[cs.id];
+
+  // Preview text for collapsed state
+  var preview = '';
+  if (top3.length === 0) {
+    preview = cs.levels.length + ' puzzles &mdash; No scores yet';
+  } else {
+    preview = cs.levels.length + ' puzzles &mdash; ' + top3[0].name + ' leads';
+  }
 
   var html = '<div class="section leaderboard-section">' +
-    '<h2>' + esc(cs.name) + ' <span class="lb-status" style="color:' + (cs.active ? 'var(--yellow)' : 'var(--muted)') + '">' + (cs.active ? '&#9679; Active' : 'Ended') + '</span></h2>' +
-    '<p class="lb-formula">Rank: most solved &rarr; hardest puzzles &rarr; fewest commands &rarr; fewest runs</p>' +
-    '<table class="lb-table"><tr><th>#</th><th>Team</th><th>Solved</th>';
-  cs.levels.forEach(function(id) {
-    html += '<th class="lb-col-header">Lv ' + id + '</th>';
-  });
-  html += '<th class="lb-col-header">Cmds</th><th class="lb-col-header">Runs</th></tr>';
+    '<div class="lb-header" onclick="toggleChallenge(' + cs.id + ')">' +
+      '<span class="lb-arrow' + (isExpanded ? ' open' : '') + '" id="lb-arrow-' + cs.id + '">&#9654;</span>' +
+      '<h2>' + esc(cs.name) + '</h2>' +
+      '<span class="lb-preview">' + preview + '</span>' +
+    '</div>' +
+    '<div class="lb-body' + (isExpanded ? '' : ' collapsed') + '" id="lb-body-' + cs.id + '">';
 
-  teamData.forEach(function(td, i) {
-    var medal = i === 0 ? '<span class="medal">&#129351;</span>' : i === 1 ? '<span class="medal">&#129352;</span>' : i === 2 ? '<span class="medal">&#129353;</span>' : '<span class="rank-num">' + (i + 1) + '</span>';
-    var rowClass = i === 0 ? 'row-gold' : i === 1 ? 'row-silver' : i === 2 ? 'row-bronze' : '';
-    html += '<tr class="' + rowClass + '">' +
-      '<td>' + medal + '</td>' +
-      '<td class="team-name">' + esc(td.name) + '</td>' +
-      '<td class="solved-count">' + td.completed + '/' + td.total + '</td>';
-
+  if (top3.length === 0) {
+    html += '<p style="color:var(--muted);font-style:italic;padding-bottom:4px;">No teams have scored yet.</p>';
+  } else {
+    // Winner per level
+    var winnerPerLevel = {};
     cs.levels.forEach(function(id) {
-      var pl = td.perLevel[id];
-      if (!pl.solved) {
-        html += '<td class="lb-cell lb-cell-unsolved">&mdash;</td>';
-      } else {
-        var w = winnerPerLevel[id];
-        var isWinner = w && pl.cmds === w.cmds && pl.runs === w.runs;
-        html += '<td class="lb-cell lb-cell-solved' + (isWinner ? ' lb-cell-winner' : '') + '">' +
-          '<span class="lb-cell-runs">' + pl.runs + '</span> / <span class="lb-cell-cmds">' + pl.cmds + '</span>' +
-          (isWinner ? ' <span class="lb-star">&#9733;</span>' : '') + '</td>';
-      }
+      var bestCmds = Infinity, bestRuns = Infinity;
+      var solverCount = 0;
+      teamData.forEach(function(td) {
+        if (!td.perLevel[id].solved) return;
+        solverCount++;
+        var c = td.perLevel[id].cmds, r = td.perLevel[id].runs;
+        if (c < bestCmds || (c === bestCmds && r < bestRuns)) { bestCmds = c; bestRuns = r; }
+      });
+      winnerPerLevel[id] = solverCount > 0 ? { cmds: bestCmds, runs: bestRuns } : null;
     });
 
-    html += '<td class="lb-total">' + td.totalCmds + '</td>' +
-      '<td class="lb-total">' + td.totalRuns + '</td></tr>';
-  });
+    html += '<p class="lb-formula">Rank: most solved &rarr; hardest puzzles &rarr; fewest commands &rarr; fewest runs</p>' +
+      '<table class="lb-table"><tr><th>#</th><th>Team</th><th>Solved</th>';
+    cs.levels.forEach(function(id) {
+      html += '<th class="lb-col-header">Lv ' + id + '</th>';
+    });
+    html += '<th class="lb-col-header">Cmds</th><th class="lb-col-header">Runs</th></tr>';
 
-  html += '</table></div>';
+    top3.forEach(function(td) {
+      var medal = td.rank === 1 ? '<span class="medal">&#129351;</span>' : td.rank === 2 ? '<span class="medal">&#129352;</span>' : '<span class="medal">&#129353;</span>';
+      var rowClass = td.rank === 1 ? 'row-gold' : td.rank === 2 ? 'row-silver' : 'row-bronze';
+      html += '<tr class="' + rowClass + '">' +
+        '<td>' + medal + '</td>' +
+        '<td class="team-name">' + esc(td.name) + '</td>' +
+        '<td class="solved-count">' + td.completed + '/' + td.total + '</td>';
+
+      cs.levels.forEach(function(id) {
+        var pl = td.perLevel[id];
+        if (!pl.solved) {
+          html += '<td class="lb-cell lb-cell-unsolved">&mdash;</td>';
+        } else {
+          var w = winnerPerLevel[id];
+          var isWinner = w && pl.cmds === w.cmds && pl.runs === w.runs;
+          html += '<td class="lb-cell lb-cell-solved' + (isWinner ? ' lb-cell-winner' : '') + '">' +
+            '<span class="lb-cell-runs">' + pl.runs + '</span> / <span class="lb-cell-cmds">' + pl.cmds + '</span>' +
+            (isWinner ? ' <span class="lb-star">&#9733;</span>' : '') + '</td>';
+        }
+      });
+
+      html += '<td class="lb-total">' + td.totalCmds + '</td>' +
+        '<td class="lb-total">' + td.totalRuns + '</td></tr>';
+    });
+
+    html += '</table>';
+  }
+
+  html += '</div></div>';
   return html;
 }
 
