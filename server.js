@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -10,13 +11,37 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 
 const MAX_LEVEL = 21;
+const STATE_FILE = path.join(__dirname, 'state.json');
+
+// --- State persistence ---
+function saveState() {
+  try {
+    const data = { levelLocks: state.levelLocks, teams: state.teams, challengeSets: state.challengeSets };
+    fs.writeFileSync(STATE_FILE, JSON.stringify(data), 'utf8');
+  } catch (e) { /* ignore write errors */ }
+}
+
+function loadState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+      if (data.levelLocks) state.levelLocks = data.levelLocks;
+      if (data.teams) {
+        state.teams = data.teams;
+        // Mark all teams as disconnected on load (they'll reconnect via WS)
+        Object.values(state.teams).forEach(t => { t.connected = false; });
+      }
+      if (data.challengeSets) state.challengeSets = data.challengeSets;
+      return true;
+    }
+  } catch (e) { /* ignore read errors, use defaults */ }
+  return false;
+}
 
 // --- In-memory state ---
 let state = {
-  // Per-level lock: true = unlocked. Default: levels 1-3 unlocked
   levelLocks: {},
   teams: {},
-  // Challenge sets
   challengeSets: [
     { id: 1, name: 'Challenge 1', levels: [4, 5], active: false },
     { id: 2, name: 'Challenge 2', levels: [7, 8, 9], active: false },
@@ -24,10 +49,13 @@ let state = {
   ],
 };
 
-// Initialize default locks: 1-3 unlocked
+// Initialize default locks
 for (let i = 1; i <= MAX_LEVEL; i++) {
   state.levelLocks[i] = false;
 }
+
+// Try to restore saved state
+loadState();
 
 // Compute which levels are unlocked (individual locks + active challenge sets)
 function getUnlockedLevels() {
@@ -53,6 +81,7 @@ function broadcast(data) {
 
 function broadcastState() {
   broadcast({ type: 'state:unlock', unlockedLevels: getUnlockedLevels(), challengeSets: state.challengeSets });
+  saveState();
 }
 
 // --- REST API for teacher dashboard ---
@@ -108,6 +137,7 @@ app.post('/api/reset', (req, res) => {
   for (let i = 1; i <= MAX_LEVEL; i++) state.levelLocks[i] = false;
   state.challengeSets.forEach(cs => { cs.active = false; });
   broadcast({ type: 'state:reset' });
+  saveState();
   res.json({ ok: true });
 });
 
@@ -187,6 +217,7 @@ wss.on('connection', (ws) => {
           unlockedLevels: getUnlockedLevels(),
           challengeSets: state.challengeSets,
         }));
+        saveState();
         break;
       }
 
@@ -220,6 +251,7 @@ wss.on('connection', (ws) => {
             }
           });
         }
+        saveState();
         break;
       }
 
