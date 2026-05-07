@@ -188,26 +188,36 @@ wss.on('connection', (ws) => {
       case 'team:register': {
         const name = (msg.name || '').trim().substring(0, 32);
         if (!name) return;
-        // Check if another connected client already owns this name
-        let nameTaken = false;
-        wss.clients.forEach(client => {
-          if (client !== ws && client.readyState === WebSocket.OPEN && client.teamName === name) {
-            nameTaken = true;
+        const rejoin = !!msg.rejoin;
+
+        if (rejoin) {
+          // Rejoin: team must already exist
+          if (!state.teams[name]) {
+            ws.send(JSON.stringify({ type: 'team:register:fail', reason: 'No team found with that name. Use "New Team" to create one.' }));
+            return;
           }
-        });
-        if (nameTaken) {
-          ws.send(JSON.stringify({ type: 'team:register:fail', reason: 'That team name is already in use. Pick a different name!' }));
-          return;
-        }
-        if (!state.teams[name]) {
+          // Kick any old sessions with this name
+          wss.clients.forEach(client => {
+            if (client !== ws && client.readyState === WebSocket.OPEN && client.teamName === name) {
+              client.send(JSON.stringify({ type: 'team:kicked', reason: 'Your team logged in from another device.' }));
+              client.teamName = null;
+            }
+          });
+        } else {
+          // New team: name must NOT already exist
+          if (state.teams[name]) {
+            ws.send(JSON.stringify({ type: 'team:register:fail', reason: 'That team name already exists. Use "Rejoin" to reconnect, or pick a different name.' }));
+            return;
+          }
           state.teams[name] = {
             completedLevels: [],
             currentLevel: 1,
-            levelStats: {},   // { levelId: { runs, commands, firstCompleted } }
+            levelStats: {},
             lastSeen: Date.now(),
             connected: true,
           };
         }
+
         state.teams[name].lastSeen = Date.now();
         state.teams[name].connected = true;
         ws.teamName = name;

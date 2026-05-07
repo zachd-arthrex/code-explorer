@@ -437,7 +437,10 @@
   <input id="team-name-input" class="name-input" type="text" maxlength="32" placeholder="e.g. Team Sparky" autocomplete="off" />
   <div id="team-error" style="color:#f87171;font-size:0.82rem;display:none;"></div>
 
-  <button id="start-btn" class="btn-primary" disabled>Start Game!</button>
+  <div style="display:flex;gap:12px;width:100%;max-width:360px;">
+    <button id="new-team-btn" class="btn-primary" style="flex:1;padding:14px 0;font-size:1rem;" disabled>New Team</button>
+    <button id="rejoin-btn" class="btn-primary" style="flex:1;padding:14px 0;font-size:1rem;background:linear-gradient(180deg,#6366f1 0%,#4f46e5 100%);box-shadow:0 6px 0 #3730a3,0 8px 20px rgba(0,0,0,0.4);" disabled>Rejoin</button>
+  </div>
   <div style="font-size:0.75rem;opacity:0.5;display:flex;align-items:center;gap:6px;">
     <span class="conn-dot" id="conn-dot"></span><span id="conn-label">Connecting...</span>
   </div>
@@ -1057,6 +1060,11 @@ function connectWS() {
       var errEl = document.getElementById('team-error');
       if (errEl) { errEl.textContent = msg.reason || 'That name is taken.'; errEl.style.display = ''; }
     }
+    if (msg.type === 'team:kicked') {
+      var errEl = document.getElementById('team-error');
+      if (errEl) { errEl.textContent = msg.reason || 'Disconnected — someone else joined with your name.'; errEl.style.display = ''; }
+      showScreen('screen-start');
+    }
     if (msg.type === 'state:reset') {
       state.completedLevels = {};
       state.levelStats = {};
@@ -1097,29 +1105,35 @@ function showScreen(id) {
 //  START SCREEN LOGIC
 // =============================================
 const teamInput = document.getElementById('team-name-input');
-const startBtn  = document.getElementById('start-btn');
+const newTeamBtn  = document.getElementById('new-team-btn');
+const rejoinBtn  = document.getElementById('rejoin-btn');
 
 teamInput.addEventListener('input', () => {
-  startBtn.disabled = teamInput.value.trim().length < 2;
+  const hasName = teamInput.value.trim().length >= 2;
+  newTeamBtn.disabled = !hasName;
+  rejoinBtn.disabled = !hasName;
 });
 
-startBtn.addEventListener('click', () => {
+function doRegister(rejoin) {
   const name = teamInput.value.trim();
   if (!name) return;
-  // Clear previous team data
-  state.completedLevels = {};
-  state.levelStats = {};
   state.teamName = name;
   var errEl = document.getElementById('team-error');
   if (errEl) errEl.style.display = 'none';
+  if (!rejoin) {
+    state.completedLevels = {};
+    state.levelStats = {};
+  }
   if (wsReady) {
-    ws.send(JSON.stringify({ type: 'team:register', name }));
+    ws.send(JSON.stringify({ type: 'team:register', name, rejoin: !!rejoin }));
   } else {
-    // offline fallback
     showScreen('screen-levels');
     renderLevelSelect();
   }
-});
+}
+
+newTeamBtn.addEventListener('click', () => doRegister(false));
+rejoinBtn.addEventListener('click', () => doRegister(true));
 
 // =============================================
 //  LEVEL SELECT
