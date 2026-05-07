@@ -49,9 +49,9 @@ let state = {
   ],
 };
 
-// Initialize default locks
+// Initialize default locks (all unlocked)
 for (let i = 1; i <= MAX_LEVEL; i++) {
-  state.levelLocks[i] = false;
+  state.levelLocks[i] = true;
 }
 
 // Try to restore saved state
