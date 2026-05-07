@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robot Coder — Leaderboard</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --accent: #6366f1; --accent2: #a5b4fc; --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --text: #e2e8f0; --muted: #94a3b8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px 40px; }
+
+  .page-title {
+    font-size: 2.2rem; font-weight: 900; text-align: center; margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--accent2), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .page-subtitle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 32px; }
+
+  .section { background: var(--card); border-radius: 14px; padding: 24px 28px; margin-bottom: 24px; }
+
+  .leaderboard-section h2 { font-size: 1.2rem; margin-bottom: 2px; }
+  .lb-status { font-size: 0.85rem; font-weight: 700; }
+  .lb-formula { font-size: 0.75rem; color: var(--muted); margin: 4px 0 12px 0; }
+
+  .lb-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .lb-table th { text-align: left; padding: 10px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .lb-table td { padding: 10px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .lb-table tr:hover td { background: rgba(99,102,241,0.06); }
+  .lb-table th.lb-col-header { text-align: center; }
+
+  .lb-cell { text-align: center; font-family: 'Courier New', monospace; font-size: 0.85rem; padding: 6px 8px; border-radius: 6px; }
+  .lb-cell-unsolved { background: rgba(100,116,139,0.08); color: var(--muted); opacity: 0.35; font-size: 0.8rem; }
+  .lb-cell-solved { color: var(--text); }
+  .lb-cell-winner {
+    background: rgba(74,222,128,0.35) !important; outline: 2px solid #4ade80; outline-offset: -2px;
+    box-shadow: 0 0 8px rgba(74,222,128,0.4);
+  }
+  .lb-cell-winner .lb-cell-cmds { color: #4ade80; font-weight: 700; text-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .lb-star { color: #fbbf24; font-size: 0.9rem; filter: drop-shadow(0 0 3px rgba(251,191,36,0.6)); }
+  .lb-cell-runs { opacity: 0.5; font-size: 0.75rem; }
+  .lb-total { font-family: 'Courier New', monospace; font-size: 0.88rem; text-align: center; font-weight: 600; }
+
+  .medal { font-size: 1.3rem; }
+  .rank-num { font-weight: 700; font-size: 1rem; color: var(--muted); }
+  .team-name { font-weight: 700; font-size: 1rem; }
+  .solved-count { font-weight: 600; }
+
+  .no-data { text-align: center; color: var(--muted); font-style: italic; padding: 40px; font-size: 1.1rem; }
+
+  /* Podium row highlights */
+  .row-gold td { background: rgba(251,191,36,0.06); }
+  .row-silver td { background: rgba(192,192,192,0.04); }
+  .row-bronze td { background: rgba(205,127,50,0.04); }
+</style>
+</head>
+<body>
+
+<div class="page-title">&#127942; Leaderboard</div>
+<div class="page-subtitle">Robot Coder &mdash; Live standings</div>
+
+<div id="boards-area">
+  <div class="no-data">Waiting for challenge data&hellip;</div>
+</div>
+
+<script>
+var API = '';
+var cachedState = null;
+
+async function fetchState() {
+  try {
+    var res = await fetch(API + '/api/state');
+    cachedState = await res.json();
+    render();
+  } catch (e) {}
+}
+
+function render() {
+  if (!cachedState) return;
+  var area = document.getElementById('boards-area');
+  var teams = cachedState.teams || {};
+  var names = Object.keys(teams);
+  var html = '';
+
+  (cachedState.challengeSets || []).forEach(function(cs) {
+    if (!cs.active && !hasAnyChallengeStats(names, teams, cs)) return;
+    html += renderChallengeLeaderboard(cs, names, teams);
+  });
+
+  if (!html) {
+    html = '<div class="no-data">No active challenges yet.</div>';
+  }
+  area.innerHTML = html;
+}
+
+function hasAnyChallengeStats(names, teams, cs) {
+  return names.some(function(name) {
+    var t = teams[name];
+    return cs.levels.some(function(id) { return t.levelStats && t.levelStats[id]; });
+  });
+}
+
+function renderChallengeLeaderboard(cs, names, teams) {
+  var teamData = names.map(function(name) {
+    var t = teams[name];
+    var perLevel = {};
+    var completed = 0;
+    var totalCmds = 0;
+    var totalRuns = 0;
+    cs.levels.forEach(function(id) {
+      var solved = (t.completedLevels || []).indexOf(id) !== -1;
+      var s = (t.levelStats || {})[id];
+      if (solved && s) {
+        var cmds = s.bestCommands || s.commands || 0;
+        var runs = s.runsToBest || s.runsToFirstSolve || s.runs || 0;
+        perLevel[id] = { cmds: cmds, runs: runs, solved: true };
+        completed++;
+        totalCmds += cmds;
+        totalRuns += runs;
+      } else {
+        perLevel[id] = { cmds: 0, runs: 0, solved: false };
+      }
+    });
+    return { name: name, completed: completed, totalCmds: totalCmds, totalRuns: totalRuns, perLevel: perLevel, total: cs.levels.length, connected: teams[name].connected };
+  }).filter(function(r) { return r.completed > 0 || r.connected; });
+
+  if (teamData.length === 0) return '';
+
+  var solversPerLevel = {};
+  cs.levels.forEach(function(id) {
+    var count = 0;
+    teamData.forEach(function(td) { if (td.perLevel[id].solved) count++; });
+    solversPerLevel[id] = count;
+  });
+  var totalParticipants = teamData.length;
+
+  teamData.forEach(function(td) {
+    var diff = 0;
+    cs.levels.forEach(function(id) {
+      if (td.perLevel[id].solved) {
+        diff += (totalParticipants - solversPerLevel[id]);
+      }
+    });
+    td.diffScore = diff;
+  });
+
+  teamData.sort(function(a, b) {
+    return b.completed - a.completed || b.diffScore - a.diffScore || a.totalCmds - b.totalCmds || a.totalRuns - b.totalRuns;
+  });
+
+  var winnerPerLevel = {};
+  cs.levels.forEach(function(id) {
+    var bestCmds = Infinity, bestRuns = Infinity;
+    var solverCount = 0;
+    teamData.forEach(function(td) {
+      if (!td.perLevel[id].solved) return;
+      solverCount++;
+      var c = td.perLevel[id].cmds, r = td.perLevel[id].runs;
+      if (c < bestCmds || (c === bestCmds && r < bestRuns)) { bestCmds = c; bestRuns = r; }
+    });
+    winnerPerLevel[id] = solverCount > 0 ? { cmds: bestCmds, runs: bestRuns } : null;
+  });
+
+  var html = '<div class="section leaderboard-section">' +
+    '<h2>' + esc(cs.name) + ' <span class="lb-status" style="color:' + (cs.active ? 'var(--yellow)' : 'var(--muted)') + '">' + (cs.active ? '&#9679; Active' : 'Ended') + '</span></h2>' +
+    '<p class="lb-formula">Rank: most solved &rarr; hardest puzzles &rarr; fewest commands &rarr; fewest runs</p>' +
+    '<table class="lb-table"><tr><th>#</th><th>Team</th><th>Solved</th>';
+  cs.levels.forEach(function(id) {
+    html += '<th class="lb-col-header">Lv ' + id + '</th>';
+  });
+  html += '<th class="lb-col-header">Cmds</th><th class="lb-col-header">Runs</th></tr>';
+
+  teamData.forEach(function(td, i) {
+    var medal = i === 0 ? '<span class="medal">&#129351;</span>' : i === 1 ? '<span class="medal">&#129352;</span>' : i === 2 ? '<span class="medal">&#129353;</span>' : '<span class="rank-num">' + (i + 1) + '</span>';
+    var rowClass = i === 0 ? 'row-gold' : i === 1 ? 'row-silver' : i === 2 ? 'row-bronze' : '';
+    html += '<tr class="' + rowClass + '">' +
+      '<td>' + medal + '</td>' +
+      '<td class="team-name">' + esc(td.name) + '</td>' +
+      '<td class="solved-count">' + td.completed + '/' + td.total + '</td>';
+
+    cs.levels.forEach(function(id) {
+      var pl = td.perLevel[id];
+      if (!pl.solved) {
+        html += '<td class="lb-cell lb-cell-unsolved">&mdash;</td>';
+      } else {
+        var w = winnerPerLevel[id];
+        var isWinner = w && pl.cmds === w.cmds && pl.runs === w.runs;
+        html += '<td class="lb-cell lb-cell-solved' + (isWinner ? ' lb-cell-winner' : '') + '">' +
+          '<span class="lb-cell-runs">' + pl.runs + '</span> / <span class="lb-cell-cmds">' + pl.cmds + '</span>' +
+          (isWinner ? ' <span class="lb-star">&#9733;</span>' : '') + '</td>';
+      }
+    });
+
+    html += '<td class="lb-total">' + td.totalCmds + '</td>' +
+      '<td class="lb-total">' + td.totalRuns + '</td></tr>';
+  });
+
+  html += '</table></div>';
+  return html;
+}
+
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+fetchState();
+setInterval(fetchState, 3000);
+</script>
+</body>
+</html>
