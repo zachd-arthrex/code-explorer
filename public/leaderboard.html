@@ -31,16 +31,13 @@
   .lb-body.collapsed { display: none; }
   .lb-formula { font-size: 0.75rem; color: var(--muted); margin: 0 0 12px 0; }
 
-  /* Overall winner section */
-  .overall-section { background: var(--card); border-radius: 14px; padding: 28px; margin-bottom: 24px; text-align: center; }
-  .overall-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 16px; color: var(--accent2); }
-  .overall-winner { font-size: 1.6rem; font-weight: 900; margin: 8px 0; }
-  .overall-stats { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  /* Overall winner table */
   .overall-table { margin: 0 auto; border-collapse: collapse; font-size: 1rem; }
   .overall-table td { padding: 8px 16px; }
   .overall-medal { font-size: 1.5rem; }
   .overall-name { font-weight: 700; font-size: 1.1rem; }
   .overall-score { font-family: 'Courier New', monospace; color: var(--muted); font-size: 0.9rem; }
+  .overall-stats { font-size: 0.85rem; color: var(--muted); text-align: center; }
 
   .lb-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .lb-table th { text-align: left; padding: 10px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
@@ -78,11 +75,11 @@
 <div class="page-title">&#127942; Leaderboard</div>
 <div class="page-subtitle">Robot Coder &mdash; Live standings</div>
 
-<div id="overall-area"></div>
-
 <div id="boards-area">
   <div class="no-data">Waiting for challenge data&hellip;</div>
 </div>
+
+<div id="overall-area"></div>
 
 <script>
 var API = '';
@@ -211,9 +208,14 @@ function render() {
     overallTop3.push(overallRanked[oi]);
   }
 
-  var overallHtml = '<div class="overall-section"><div class="overall-title">&#127942; Overall Champion</div>';
+  var isOverallExpanded = !!expandedSets['overall'];
+  var overallPreview = overallTop3.length > 0 ? overallTop3[0].name + ' leads' : 'No scores yet';
+  var overallHtml = '<div class="section leaderboard-section">' +
+    '<div class="lb-header" onclick="toggleChallenge(\'overall\')"><span class="lb-arrow' + (isOverallExpanded ? ' open' : '') + '" id="lb-arrow-overall">&#9654;</span>' +
+    '<h2>&#127942; Overall Champion</h2><span class="lb-preview">' + overallPreview + '</span></div>' +
+    '<div class="lb-body' + (isOverallExpanded ? '' : ' collapsed') + '" id="lb-body-overall">';
   if (overallTop3.length === 0) {
-    overallHtml += '<div style="color:var(--muted);font-style:italic;">No scores yet</div>';
+    overallHtml += '<p style="color:var(--muted);font-style:italic;">No scores yet</p>';
   } else {
     overallHtml += '<table class="overall-table">';
     var medals = ['', '&#129351;', '&#129352;', '&#129353;'];
@@ -225,7 +227,7 @@ function render() {
     overallHtml += '</table>';
     overallHtml += '<div class="overall-stats" style="margin-top:12px;">Points: 3 per challenge win, 2 for 2nd, 1 for 3rd</div>';
   }
-  overallHtml += '</div>';
+  overallHtml += '</div></div>';
   overallArea.innerHTML = overallHtml;
 
   // Render each challenge (always show all)
