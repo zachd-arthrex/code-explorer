@@ -1023,7 +1023,7 @@ function connectWS() {
   ws.onopen = () => {
     wsReady = true;
     setConnStatus(true);
-    if (state.teamName) {
+    if (state.teamName && state.teamName !== '__teacher_preview__') {
       ws.send(JSON.stringify({ type: 'team:register', name: state.teamName }));
     }
   };

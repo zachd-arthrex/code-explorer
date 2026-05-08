@@ -57,6 +57,9 @@ for (let i = 1; i <= MAX_LEVEL; i++) {
 // Try to restore saved state
 loadState();
 
+// Remove teacher preview if it exists in persisted state
+delete state.teams['__teacher_preview__'];
+
 // Compute which levels are unlocked (individual locks + active challenge sets)
 function getUnlockedLevels() {
   const unlocked = {};
@@ -187,7 +190,7 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'team:register': {
         const name = (msg.name || '').trim().substring(0, 32);
-        if (!name) return;
+        if (!name || name === '__teacher_preview__') return;
         const rejoin = !!msg.rejoin;
 
         if (rejoin) {
