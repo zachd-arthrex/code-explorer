@@ -18,6 +18,7 @@
   .level-chip {
     width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 0.85rem; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; user-select: none; flex-shrink: 0;
+    flex-direction: column; gap: 2px; padding: 4px 6px; width: auto; min-width: 42px; height: auto; min-height: 42px;
   }
   .level-chip.unlocked { background: rgba(74,222,128,0.2); color: var(--green); border-color: rgba(74,222,128,0.5); }
   .level-chip.locked { background: rgba(248,113,113,0.15); color: var(--red); border-color: rgba(248,113,113,0.3); opacity: 0.7; }
@@ -109,25 +110,16 @@
   .btn-delete-team { color: var(--red); border-color: var(--red); }
   .btn-delete-team:hover { background: rgba(239,68,68,0.15); }
 
-  /* Level reference cards */
-  .level-ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-  .level-card { background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.06); transition: all 0.15s; }
-  .level-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .level-card-id { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .level-card-title { font-size: 0.85rem; font-weight: 700; color: var(--accent2); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mini-grid { display: inline-grid; gap: 1px; margin: 0 auto; }
-  .mini-cell { width: 8px; height: 8px; border-radius: 1px; }
-  .mini-cell-floor { background: rgba(99,102,241,0.35); }
+  /* Mini grid thumbnails in level chips */
+  .level-chip-label { font-size: 0.7rem; line-height: 1; }
+  .level-chip-title { font-size: 0.5rem; opacity: 0.7; line-height: 1; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-grid { display: inline-grid; gap: 1px; }
+  .mini-cell { width: 4px; height: 4px; border-radius: 0.5px; }
+  .mini-cell-floor { background: rgba(99,102,241,0.4); }
   .mini-cell-wall { background: rgba(255,255,255,0.04); }
-  .mini-cell-dock { background: var(--green); box-shadow: 0 0 3px rgba(74,222,128,0.5); }
-  .mini-cell-player { background: var(--yellow); box-shadow: 0 0 3px rgba(251,191,36,0.5); }
-  .mini-cell-collect { background: #38bdf8; box-shadow: 0 0 2px rgba(56,189,248,0.4); }
-  .level-card-features { font-size: 0.6rem; color: var(--muted); margin-top: 4px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
-  .feat-tag { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; }
-
-  /* Game preview iframe */
-  .game-frame-wrap { position: relative; width: 100%; padding-top: 62.5%; border-radius: 10px; overflow: hidden; background: var(--bg); }
-  .game-frame-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 10px; }
+  .mini-cell-dock { background: var(--green); }
+  .mini-cell-player { background: var(--yellow); }
+  .mini-cell-collect { background: #38bdf8; }
 </style>
 </head>
 <body>
@@ -153,21 +145,7 @@
   </div>
 </div>
 
-<!-- LEVEL REFERENCE -->
-<div class="section">
-  <h2>Level Reference</h2>
-  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;">All 21 levels at a glance — name, layout, and features.</p>
-  <div class="level-ref-grid" id="level-ref-grid"></div>
-</div>
 
-<!-- GAME PREVIEW -->
-<div class="section">
-  <h2>Game Preview</h2>
-  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;">Play any level without logging in. Use this to preview puzzles or demo for the class.</p>
-  <div class="game-frame-wrap">
-    <iframe src="/index.html?teacher=1" id="game-frame" allow="autoplay"></iframe>
-  </div>
-</div>
 
 <script>
 var API = '';
@@ -228,7 +206,6 @@ function render() {
   if (!cachedState) return;
   renderLevels();
   renderTeams();
-  renderLevelRef();
 }
 }
 
@@ -317,8 +294,44 @@ function makeChip(id, unlocked, inChallenge) {
   var lvlInfo = LEVEL_DATA.find(function(l) { return l.id === id; });
   var chip = document.createElement('div');
   chip.className = 'level-chip ' + (unlocked ? 'unlocked' : 'locked');
-  chip.textContent = id;
   chip.title = 'Level ' + id + (lvlInfo ? ': ' + lvlInfo.title : '') + (unlocked ? ' (unlocked)' : ' (locked)') + (inChallenge ? ' — click to toggle group' : ' — click to toggle');
+
+  // Number + title
+  var lbl = document.createElement('span');
+  lbl.className = 'level-chip-label';
+  lbl.textContent = id;
+  chip.appendChild(lbl);
+
+  // Mini grid thumbnail
+  if (lvlInfo) {
+    var collectSet = {};
+    lvlInfo.collectibles.forEach(function(c) { collectSet[c[0] + ',' + c[1]] = true; });
+    var gridEl = document.createElement('div');
+    gridEl.className = 'mini-grid';
+    gridEl.style.gridTemplateColumns = 'repeat(' + lvlInfo.cols + ', 4px)';
+    for (var r = 0; r < lvlInfo.rows; r++) {
+      for (var c = 0; c < lvlInfo.cols; c++) {
+        var cell = document.createElement('div');
+        var val = lvlInfo.grid[r][c];
+        var key = r + ',' + c;
+        var cls = 'mini-cell ';
+        if (r === lvlInfo.player[0] && c === lvlInfo.player[1]) cls += 'mini-cell-player';
+        else if (val === 2) cls += 'mini-cell-dock';
+        else if (collectSet[key]) cls += 'mini-cell-collect';
+        else if (val === -1) cls += 'mini-cell-wall';
+        else cls += 'mini-cell-floor';
+        cell.className = cls;
+        gridEl.appendChild(cell);
+      }
+    }
+    chip.appendChild(gridEl);
+
+    var titleEl = document.createElement('span');
+    titleEl.className = 'level-chip-title';
+    titleEl.textContent = lvlInfo.title;
+    chip.appendChild(titleEl);
+  }
+
   return chip;
 }
 
@@ -577,79 +590,9 @@ function deleteTeam(name) {
     .then(function() { fetchState(); });
 }
 
-// ---- LEVEL REFERENCE ----
-var levelRefRendered = false;
-function renderLevelRef() {
-  if (levelRefRendered) return; // only render once
-  levelRefRendered = true;
-  var container = document.getElementById('level-ref-grid');
-  var html = '';
-  LEVEL_DATA.forEach(function(lvl) {
-    var features = [];
-    if (lvl.collectibles.length > 0) features.push(lvl.collectibles.length + ' cell' + (lvl.collectibles.length > 1 ? 's' : ''));
-    if (lvl.portals.length > 0) features.push(lvl.portals.length + ' portal' + (lvl.portals.length > 1 ? 's' : ''));
-    if (lvl.funcs) features.push('functions');
-
-    // Build collectible/portal lookup sets
-    var collectSet = {};
-    lvl.collectibles.forEach(function(c) { collectSet[c[0] + ',' + c[1]] = true; });
-    var portalSet = {};
-    lvl.portals.forEach(function(p) {
-      portalSet[p[0][0] + ',' + p[0][1]] = true;
-      portalSet[p[1][0] + ',' + p[1][1]] = true;
-    });
-
-    // Which challenge?
-    var chLabel = '';
-    if (challengeLevelMap[lvl.id]) {
-      var csId = challengeLevelMap[lvl.id];
-      var cs = CHALLENGE_SETS_DEF.find(function(c) { return c.id === csId; });
-      if (cs) chLabel = '<span class="feat-tag" style="color:var(--yellow);">' + esc(cs.name) + '</span>';
-    }
-
-    html += '<div class="level-card">';
-    html += '<div class="level-card-id">Level ' + lvl.id + '</div>';
-    html += '<div class="level-card-title">' + esc(lvl.title) + '</div>';
-
-    // Mini grid
-    html += '<div class="mini-grid" style="grid-template-columns:repeat(' + lvl.cols + ',8px);">';
-    for (var r = 0; r < lvl.rows; r++) {
-      for (var c = 0; c < lvl.cols; c++) {
-        var val = lvl.grid[r][c];
-        var cls = 'mini-cell ';
-        var key = r + ',' + c;
-        if (r === lvl.player[0] && c === lvl.player[1]) {
-          cls += 'mini-cell-player';
-        } else if (val === 2) {
-          cls += 'mini-cell-dock';
-        } else if (collectSet[key]) {
-          cls += 'mini-cell-collect';
-        } else if (val === -1) {
-          cls += 'mini-cell-wall';
-        } else {
-          cls += 'mini-cell-floor';
-        }
-        html += '<div class="' + cls + '"></div>';
-      }
-    }
-    html += '</div>';
-
-    // Feature tags
-    html += '<div class="level-card-features">';
-    html += lvl.rows + '×' + lvl.cols;
-    features.forEach(function(f) { html += ' <span class="feat-tag">' + f + '</span>'; });
-    if (chLabel) html += ' ' + chLabel;
-    html += '</div>';
-
-    html += '</div>';
-  });
-  container.innerHTML = html;
-}
-
 // ---- INIT ----
 fetchState();
 setInterval(fetchState, 3000);
-renderLevelRef();
 </script>
 </body>
 </html>
