@@ -380,7 +380,7 @@ async function resetAll() {
 function renderTeams() {
   var area = document.getElementById('teams-area');
   var teams = cachedState.teams || {};
-  var names = Object.keys(teams);
+  var names = Object.keys(teams).filter(function(n) { return n !== '__teacher_preview__'; });
 
   if (names.length === 0) {
     area.innerHTML = '<div class="no-teams">No teams connected yet.</div>';

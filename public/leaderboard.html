@@ -177,7 +177,7 @@ function render() {
   var area = document.getElementById('boards-area');
   var overallArea = document.getElementById('overall-area');
   var teams = cachedState.teams || {};
-  var names = Object.keys(teams);
+  var names = Object.keys(teams).filter(function(n) { return n !== '__teacher_preview__'; });
   var html = '';
 
   var challengeSets = cachedState.challengeSets || [];
