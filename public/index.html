@@ -1084,6 +1084,7 @@ function setConnStatus(online) {
 
 function sendProgress() {
   if (!wsReady || !state.teamName) return;
+  if (state.teamName === '__teacher_preview__') return; // don't save teacher preview progress
   ws.send(JSON.stringify({
     type: 'team:progress',
     level: state.currentLevel?.id || 1,
@@ -1158,7 +1159,10 @@ function renderLevelSelect() {
   });
 }
 
-document.getElementById('back-to-start').addEventListener('click', () => showScreen('screen-start'));
+document.getElementById('back-to-start').addEventListener('click', () => {
+  if (new URLSearchParams(window.location.search).get('teacher') === '1') return; // no back in teacher mode
+  showScreen('screen-start');
+});
 
 // =============================================
 //  GAME: LEVEL SETUP
@@ -2682,6 +2686,18 @@ document.getElementById('btn-mute').addEventListener('click', function() {
 });
 
 connectWS();
+
+// Teacher preview mode — skip login, unlock all levels
+var isTeacherMode = new URLSearchParams(window.location.search).get('teacher') === '1';
+if (isTeacherMode) {
+  state.teamName = '__teacher_preview__';
+  // Unlock all levels locally so teacher can browse freely
+  for (var i = 1; i <= 21; i++) state.unlockedLevels[i] = true;
+  showScreen('screen-levels');
+  renderLevelSelect();
+  // Hide connection status elements and back button
+  document.querySelectorAll('#conn-dot, #conn-label').forEach(function(el) { el.style.display = 'none'; });
+}
 </script>
 </body>
 </html>
